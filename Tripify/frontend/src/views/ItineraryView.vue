@@ -1,233 +1,1006 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTripStore } from '@/stores/trip'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const tripStore = useTripStore()
+const authStore = useAuthStore()
+
+const showReviewModal = ref(false)
+const review = ref('')
+const rating = ref(5.0)
+const isSubmitting = ref(false)
+const reviewError = ref('')
+
+// [기존 로직 동일]
+const getWriterNickname = (planUser) => {
+  if (!planUser) return '...'
+  if (isOwner.value && authStore.user?.nickname) {
+    return authStore.user.nickname
+  }
+  if (typeof planUser === 'object') {
+    return planUser.nickname || planUser.username || '익명'
+  }
+  return planUser
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}`
+}
+
+const getAccommodationTypeLabel = (type) => {
+  const labels = {
+    'hotel': '호텔', 'motel': '모텔', 'pension': '펜션', 'guesthouse': '게스트하우스', 'resort': '리조트'
+  }
+  return labels[type?.toLowerCase()] || type
+}
+
+const getTransportationValueLabel = (value) => {
+  if (!value) return ''
+  const strValue = String(value)
+  const labels = {
+    'car': '자동차', 'public_transport': '대중교통', 'walk': '도보', 'walking': '도보',
+    'taxi': '택시', 'bus': '버스', 'subway': '지하철', 'train': '기차',
+    'airplane': '비행기', 'bicycle': '자전거'
+  }
+  return labels[strValue.toLowerCase()] || strValue
+}
+
+const getTransportKeyLabel = (key) => {
+  const labelMap = {
+    'morning': '오전', 'afternoon': '오후', 'evening': '저녁', 'night': '밤',
+    'cost': '비용', 'duration': '소요 시간', 'type': '이동 수단', 'distance': '거리'
+  }
+  if (labelMap[key]) return labelMap[key]
+  if (key.includes('_')) {
+    const parts = key.split('_')
+    const timeKeys = ['morning', 'afternoon', 'evening', 'night']
+    if (timeKeys.includes(parts[1])) return `${labelMap[parts[1]] || parts[1]} ${labelMap[parts[0]] || parts[0]}`
+    if (timeKeys.includes(parts[0])) return `${labelMap[parts[0]] || parts[0]} ${labelMap[parts[1]] || parts[1]}`
+    return parts.map(part => labelMap[part] || part).join(' ')
+  }
+  return key.charAt(0).toUpperCase() + key.slice(1)
+}
+
+const totalEstimatedCost = computed(() => {
+  if (!tripStore.currentPlan?.itineraries) return 0
+  return tripStore.currentPlan.itineraries.reduce((sum, itinerary) => {
+    return sum + (itinerary.estimated_cost || 0)
+  }, 0)
+})
+
+const isOwner = computed(() => {
+  if (!tripStore.currentPlan || !authStore.user) return false
+  const planUser = typeof tripStore.currentPlan.user === 'string' 
+    ? tripStore.currentPlan.user 
+    : tripStore.currentPlan.user?.username || tripStore.currentPlan.user
+  const currentUser = authStore.user.username || authStore.user
+  return planUser === currentUser
+})
+
+const getStarFill = (index) => {
+  const currentRating = parseFloat(rating.value)
+  if (currentRating >= index) return '100%'
+  if (currentRating >= index - 0.5) return '50%'
+  return '0%'
+}
+
+const setRating = (index, isHalf) => {
+  rating.value = isHalf ? index - 0.5 : parseFloat(index)
+}
+
+const handleRecommend = () => {
+  if (!tripStore.currentPlan.is_recommended) {
+    showReviewModal.value = true
+    review.value = tripStore.currentPlan.review || ''
+    rating.value = tripStore.currentPlan.rating ? parseFloat(tripStore.currentPlan.rating) : 5.0
+  } else {
+    handleUnrecommend()
+  }
+}
+
+const handleUnrecommend = async () => {
+  if (!confirm('추천을 취소하시겠습니까?')) return
+  try {
+    await tripStore.unrecommendPlan(tripStore.currentPlan.id)
+    await tripStore.fetchPlan(tripStore.currentPlan.id)
+    alert('추천이 취소되었습니다.')
+  } catch (error) {
+    console.error('추천 취소 에러:', error)
+    if (error.response?.status === 404) {
+      await tripStore.fetchPlan(tripStore.currentPlan.id)
+      return
+    }
+    const errorMsg = error.response?.data?.error || error.response?.data?.detail || '추천 취소 중 오류가 발생했습니다.'
+    alert(errorMsg)
+  }
+}
+
+const submitReview = async () => {
+  if (!review.value.trim()) {
+    reviewError.value = '후기를 입력해주세요.'
+    return
+  }
+  if (review.value.trim().length > 2000) {
+    reviewError.value = '후기는 2000자 이하여야 합니다.'
+    return
+  }
+  
+  isSubmitting.value = true
+  reviewError.value = ''
+  
+  try {
+    await tripStore.recommendPlan(tripStore.currentPlan.id, {
+      review: review.value.trim(),
+      rating: parseFloat(rating.value)
+    })
+    showReviewModal.value = false
+    review.value = ''
+    rating.value = 5.0
+  } catch (error) {
+    reviewError.value = error.response?.data?.error || '후기 작성 중 오류가 발생했습니다.'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+const closeReviewModal = () => {
+  showReviewModal.value = false
+  review.value = ''
+  rating.value = 5.0
+  reviewError.value = ''
+}
+
+// [신규 기능] 시간/키워드에 따른 색상 클래스 반환
+const getTimePeriodClass = (input) => {
+  if (!input) return ''
+  const str = String(input).toLowerCase()
+
+  // 1. 키워드 매칭 (식사/시간대)
+  if (['아침', 'morning', 'breakfast', '오전'].some(k => str.includes(k))) return 'period-morning'
+  if (['점심', 'lunch', 'afternoon', '오후'].some(k => str.includes(k))) return 'period-afternoon'
+  if (['저녁', 'dinner', 'evening', 'night', '밤'].some(k => str.includes(k))) return 'period-evening'
+
+  // 2. 시간 형식 매칭 (HH:mm)
+  const timeMatch = str.match(/(\d{1,2}):/)
+  if (timeMatch) {
+    const hour = parseInt(timeMatch[1])
+    if (hour < 12) return 'period-morning'    // 12시 이전 -> 오전 (파랑)
+    if (hour < 18) return 'period-afternoon'  // 18시 이전 -> 오후 (주황)
+    return 'period-evening'                   // 그 외 -> 저녁 (보라)
+  }
+
+  return ''
+}
+
+const error = ref('')
 
 onMounted(async () => {
   const id = route.params.id
-  await tripStore.fetchPlan(id)
+  if (authStore.isAuthenticated) {
+    try {
+      await authStore.getProfile()
+    } catch (error) {
+      console.error('프로필 로드 실패:', error)
+    }
+  }
+  try {
+    await tripStore.fetchPlan(id)
+  } catch (err) {
+    console.error('여행 계획 로드 실패:', err)
+    if (err.response?.status === 404) {
+      error.value = '여행 계획을 찾을 수 없습니다.'
+    } else if (err.response?.status === 403) {
+      error.value = '이 여행 계획에 접근할 수 없습니다.'
+    } else {
+      error.value = '여행 계획을 불러오는 중 오류가 발생했습니다.'
+    }
+  }
 })
 </script>
 
 <template>
   <div class="itinerary-view">
-    <div v-if="tripStore.loading" class="loading">로딩 중...</div>
+    <div v-if="tripStore.loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>여행 계획을 불러오는 중입니다...</p>
+    </div>
+
+    <div v-else-if="error" class="error-message-container">
+      <div class="error-message-box content-card">
+        <svg class="error-icon-svg" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <h2>오류 발생</h2>
+        <p>{{ error }}</p>
+        <button @click="$router.push('/recommended')" class="btn-back">목록으로 돌아가기</button>
+      </div>
+    </div>
 
     <div v-else-if="tripStore.currentPlan" class="itinerary-content">
-      <h1>{{ tripStore.currentPlan.title }}</h1>
-
-      <div class="trip-details">
-        <p><strong>지역:</strong> {{ tripStore.currentPlan.region }}</p>
-        <p><strong>기간:</strong> {{ tripStore.currentPlan.start_date }} ~ {{ tripStore.currentPlan.end_date }}</p>
-        <p><strong>예산:</strong> {{ tripStore.currentPlan.budget.toLocaleString() }}원</p>
-        <p><strong>스타일:</strong> {{ tripStore.currentPlan.travel_style }}</p>
-        <p><strong>숙박:</strong> {{ tripStore.currentPlan.accommodation_type }}</p>
-      </div>
-
-      <div v-if="tripStore.currentPlan.itineraries && tripStore.currentPlan.itineraries.length > 0" class="itineraries">
-        <h2>일정</h2>
-        <div v-for="itinerary in tripStore.currentPlan.itineraries" :key="itinerary.id" class="itinerary-day">
-          <h3>{{ itinerary.day_number }}일차 - {{ itinerary.date }}</h3>
-          <p class="day-description">{{ itinerary.description }}</p>
-
-          <!-- 관광지 정보 -->
-          <div v-if="itinerary.attractions && itinerary.attractions.length > 0" class="section">
-            <h4>🏛️ 관광지</h4>
-            <div v-for="(attraction, index) in itinerary.attractions" :key="index" class="attraction-item">
-              <p class="attraction-name">{{ attraction.name }}</p>
-              <p class="attraction-details">
-                <span v-if="attraction.time">⏰ {{ attraction.time }}</span>
-                <span v-if="attraction.duration">⏱️ {{ attraction.duration }}</span>
-              </p>
-              <p v-if="attraction.description" class="attraction-description">{{ attraction.description }}</p>
-            </div>
+      
+      <div class="header-section content-card main-header">
+        <div class="header-top">
+          <span class="location-badge">{{ tripStore.currentPlan.region }}</span>
+          <div class="plan-meta">
+             <span>{{ getWriterNickname(tripStore.currentPlan.user) }}</span>
+             <span class="divider"></span>
+             <span>{{ formatDate(tripStore.currentPlan.created_at) }}</span>
+          </div>
+        </div>
+        <h1>{{ tripStore.currentPlan.title }}</h1>
+        
+        <div class="header-bottom">
+          <div class="trip-summary-bar">
+             <div class="summary-item">
+                <span class="label">기간</span>
+                <span class="value">{{ tripStore.currentPlan.start_date }} ~ {{ tripStore.currentPlan.end_date }}</span>
+             </div>
+             <div class="summary-item">
+                <span class="label">인원</span>
+                <span class="value">{{ tripStore.currentPlan.people_count }}명</span>
+             </div>
+             <div class="summary-item">
+                <span class="label">스타일</span>
+                <span class="value tag">{{ tripStore.currentPlan.travel_style }}</span>
+             </div>
           </div>
 
-          <!-- 교통수단 정보 -->
-          <div v-if="itinerary.transportation_info && Object.keys(itinerary.transportation_info).length > 0" class="section">
-            <h4>🚌 교통수단</h4>
-            <div v-for="(info, time) in itinerary.transportation_info" :key="time" class="info-item">
-              <p><strong>{{ time }}:</strong> {{ info }}</p>
-            </div>
-          </div>
-
-          <!-- 숙소 정보 -->
-          <div v-if="itinerary.accommodation_info && Object.keys(itinerary.accommodation_info).length > 0" class="section">
-            <h4>🏨 숙소</h4>
-            <p v-if="itinerary.accommodation_info.name" class="info-item">
-              <strong>숙소:</strong> {{ itinerary.accommodation_info.name }}
-            </p>
-            <p v-if="itinerary.accommodation_info.cost" class="info-item">
-              <strong>비용:</strong> {{ itinerary.accommodation_info.cost.toLocaleString() }}원
-            </p>
-            <p v-if="itinerary.accommodation_info.check_in" class="info-item">
-              <strong>체크인:</strong> {{ itinerary.accommodation_info.check_in }} /
-              <strong>체크아웃:</strong> {{ itinerary.accommodation_info.check_out }}
-            </p>
-          </div>
-
-          <!-- 식사 정보 -->
-          <div v-if="itinerary.meals_info && Object.keys(itinerary.meals_info).length > 0" class="section">
-            <h4>🍽️ 식사</h4>
-            <div v-for="(meal, time) in itinerary.meals_info" :key="time" class="meal-item">
-              <p>
-                <strong>{{ time === 'breakfast' ? '아침' : time === 'lunch' ? '점심' : '저녁' }}:</strong>
-                {{ typeof meal === 'string' ? meal : meal.restaurant }}
-                <span v-if="typeof meal === 'object' && meal.cost">
-                  ({{ meal.cost.toLocaleString() }}원)
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <!-- 축제/행사 정보 -->
-          <div v-if="itinerary.events_info && itinerary.events_info.length > 0" class="section">
-            <h4>🎉 축제/행사</h4>
-            <div v-for="(event, index) in itinerary.events_info" :key="index" class="event-item">
-              <p class="event-name">{{ event.name }}</p>
-              <p v-if="event.time" class="event-details">⏰ {{ event.time }}</p>
-              <p v-if="event.location" class="event-details">📍 {{ event.location }}</p>
-              <p v-if="event.description" class="event-description">{{ event.description }}</p>
-            </div>
-          </div>
-
-          <!-- 예상 비용 -->
-          <div v-if="itinerary.estimated_cost" class="estimated-cost">
-            <p><strong>💰 예상 비용:</strong> {{ itinerary.estimated_cost.toLocaleString() }}원</p>
+          <div v-if="authStore.isAuthenticated && !isOwner" class="recommend-section">
+            <button 
+              @click="handleRecommend"
+              :class="['btn-recommend-action', { 'active': tripStore.currentPlan.is_recommended }]"
+            >
+              <svg class="icon-svg heart" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+              {{ tripStore.currentPlan.is_recommended ? '추천됨' : '추천하기' }}
+            </button>
           </div>
         </div>
       </div>
 
-      <div v-else class="empty-itinerary">
-        <p>아직 일정이 추가되지 않았습니다.</p>
+      <div class="info-bar-container">
+        <div class="budget-overview content-card">
+           <span class="budget-label">총 예산</span>
+           <span class="budget-value">{{ tripStore.currentPlan.budget.toLocaleString() }}원</span>
+           <span class="budget-sub">(1인당 약 {{ Math.floor(tripStore.currentPlan.budget / tripStore.currentPlan.people_count).toLocaleString() }}원)</span>
+        </div>
+        <div class="price-notice content-card">
+          <svg class="notice-icon-svg" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <p>표시된 예상 금액은 참고용이며, 실제 예약 시 가격이 상이할 수 있습니다.</p>
+        </div>
+      </div>
+
+      <div v-if="tripStore.currentPlan.itineraries && tripStore.currentPlan.itineraries.length > 0" class="itineraries">
+        <h2 class="section-title">상세 일정표</h2>
+        
+        <div v-for="itinerary in tripStore.currentPlan.itineraries" :key="itinerary.id" class="itinerary-day content-card">
+          <div class="day-sidebar">
+            <div class="day-badge">DAY {{ itinerary.day_number }}</div>
+            <div class="day-date">{{ formatDate(itinerary.date) }}</div>
+          </div>
+          
+          <div class="day-content">
+            <div class="day-description-box">
+               <p>{{ itinerary.description }}</p>
+            </div>
+
+            <div class="schedule-container">
+              <div class="timeline-section">
+                 
+                 <template v-if="itinerary.attractions && itinerary.attractions.length > 0">
+                    <h4 class="schedule-title">
+                      <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                      주요 관광
+                    </h4>
+                    <div class="timeline-list">
+                       <div 
+                         v-for="(attraction, index) in itinerary.attractions" 
+                         :key="'att'+index" 
+                         class="timeline-item"
+                         :class="getTimePeriodClass(attraction.time)"
+                       >
+                          <div class="time-marker">{{ attraction.time || '-' }}</div>
+                          <div class="place-info">
+                             <div class="place-name">{{ attraction.name }}</div>
+                             <p v-if="attraction.description" class="place-desc">{{ attraction.description }}</p>
+                          </div>
+                       </div>
+                    </div>
+                 </template>
+
+                 <template v-if="itinerary.meals_info && Object.keys(itinerary.meals_info).length > 0">
+                    <h4 class="schedule-title" style="margin-top: 2rem;">
+                      <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>
+                      식사
+                    </h4>
+                     <div class="timeline-list">
+                       <div 
+                         v-for="(meal, time) in itinerary.meals_info" 
+                         :key="'meal'+time" 
+                         class="timeline-item meal"
+                         :class="getTimePeriodClass(time)"
+                       >
+                          <div class="time-marker">{{ time }}</div>
+                          <div class="place-info">
+                             <div class="place-name">{{ typeof meal === 'string' ? meal : meal.restaurant }}</div>
+                             <span v-if="typeof meal === 'object' && meal.cost" class="cost-tag">
+                                예상 {{ meal.cost.toLocaleString() }}원
+                             </span>
+                          </div>
+                       </div>
+                    </div>
+                 </template>
+              </div>
+
+              <div class="logistics-section">
+                 <div v-if="itinerary.accommodation_info?.name" class="logistics-card">
+                    <h4>
+                      <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></svg>
+                      숙소
+                    </h4>
+                    <p class="main-text">{{ itinerary.accommodation_info.name }}</p>
+                    <p class="sub-text" v-if="itinerary.accommodation_info.cost">₩{{ itinerary.accommodation_info.cost.toLocaleString() }}</p>
+                 </div>
+
+                 <div v-if="itinerary.transportation_info && Object.keys(itinerary.transportation_info).length > 0" class="logistics-card">
+                    <h4>
+                      <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                      교통
+                    </h4>
+                    <div class="transport-list">
+                       <div v-for="(info, key) in itinerary.transportation_info" :key="key" class="transport-item">
+                          <span class="transport-label">{{ getTransportKeyLabel(key) }}</span>
+                          <span class="transport-value">{{ getTransportationValueLabel(info) }}</span>
+                       </div>
+                    </div>
+                 </div>
+
+                  <div v-if="itinerary.estimated_cost" class="daily-cost-summary">
+                    <span>일일 예상 비용</span>
+                    <strong>{{ itinerary.estimated_cost.toLocaleString() }}원</strong>
+                  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="totalEstimatedCost > 0" class="total-cost-summary content-card">
+          <h3>전체 예상 여행 경비</h3>
+          <div class="cost-comparison">
+            <div class="cost-box plan">
+              <span>계획 예산</span>
+              <strong>{{ tripStore.currentPlan.budget.toLocaleString() }}원</strong>
+            </div>
+            <div class="cost-divider">/</div>
+            <div class="cost-box estimate">
+              <span>추정 비용</span>
+              <strong>{{ totalEstimatedCost.toLocaleString() }}원</strong>
+            </div>
+          </div>
+          <div class="cost-result">
+               <span class="result-label">결과</span>
+               <span class="result-value" :class="totalEstimatedCost > tripStore.currentPlan.budget ? 'over' : 'save'">
+                  {{ totalEstimatedCost > tripStore.currentPlan.budget ? '예산 초과' : '예산 절약' }}
+                  ({{ Math.abs(totalEstimatedCost - tripStore.currentPlan.budget).toLocaleString() }}원)
+               </span>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="empty-itinerary content-card">
+        <p>표시할 일정 정보가 없습니다.</p>
       </div>
     </div>
+
+    <transition name="modal">
+      <div v-if="showReviewModal" class="modal-overlay" @click.self="closeReviewModal">
+        <div class="modal-content content-card review-modal">
+          <div class="modal-header">
+             <h2>추천하기</h2>
+             <button class="btn-close" @click="closeReviewModal">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+             </button>
+          </div>
+          <p class="modal-subtitle">이 여행 계획이 도움이 되셨나요?</p>
+          
+          <div class="review-form">
+            <div class="form-group rating-group">
+              <div class="rating-input">
+                <div 
+                  v-for="index in 5" 
+                  :key="index" 
+                  class="star-container"
+                >
+                  <svg class="star-icon bg" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                  <div class="star-fill-wrapper" :style="{ width: getStarFill(index) }">
+                    <svg class="star-icon fill" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                  </div>
+                  <div class="click-area left" @click="setRating(index, true)"></div>
+                  <div class="click-area right" @click="setRating(index, false)"></div>
+                </div>
+                <span class="rating-text">{{ rating.toFixed(1) }}</span>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <textarea
+                v-model="review"
+                placeholder="자유롭게 후기를 남겨주세요."
+                rows="5"
+                maxlength="2000"
+                class="review-textarea"
+              ></textarea>
+              <div class="char-count">{{ review.length }} / 2000</div>
+            </div>
+            
+            <div v-if="reviewError" class="error-message">{{ reviewError }}</div>
+            
+            <button @click="submitReview" class="btn-submit" :disabled="isSubmitting">
+              {{ isSubmitting ? '처리 중...' : '작성 완료' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <style scoped>
-.loading {
-  text-align: center;
-  padding: 2rem;
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+
+.itinerary-view {
+  background-color: #f9f9fb;
+  min-height: 100vh;
+  padding: 3rem 1rem;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  color: #333;
 }
 
-h1 {
-  margin-bottom: 2rem;
+.itinerary-content {
+  max-width: 1024px;
+  margin: 0 auto;
 }
 
-.trip-details {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+/* SVG 아이콘 */
+.icon-svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  vertical-align: middle;
 }
 
-.trip-details p {
-  margin-bottom: 0.5rem;
+.section-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-right: 0.4rem;
+  color: #6a11cb;
+  vertical-align: text-bottom;
 }
 
-.itineraries h2 {
+.error-icon-svg {
+  color: #e03131;
   margin-bottom: 1rem;
+}
+
+.notice-icon-svg {
+  color: #ffd700;
+  flex-shrink: 0;
+}
+
+/* 카드 스타일 */
+.content-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(106, 17, 203, 0.06);
+  border: 1px solid #f0f0f0;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+/* 헤더 */
+.header-section.main-header {
+   padding: 2.5rem 2rem;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.location-badge {
+  background: #f3e8ff;
+  color: #6a11cb;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.plan-meta {
+  font-size: 0.9rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+}
+
+.divider {
+  display: inline-block;
+  width: 1px;
+  height: 10px;
+  background: #ddd;
+  margin: 0 0.8rem;
+}
+
+.header-section h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0 0 2rem 0;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.header-bottom {
+   display: flex;
+   justify-content: space-between;
+   align-items: flex-end;
+}
+
+.trip-summary-bar {
+   display: flex;
+   gap: 2.5rem;
+}
+
+.summary-item {
+   display: flex;
+   flex-direction: column;
+   gap: 0.3rem;
+}
+
+.summary-item .label {
+   font-size: 0.8rem;
+   color: #999;
+   font-weight: 500;
+}
+
+.summary-item .value {
+   font-size: 1.05rem;
+   font-weight: 600;
+   color: #333;
+}
+
+.summary-item .value.tag {
+   color: #6a11cb;
+}
+
+/* 추천 버튼 */
+.btn-recommend-action {
+  padding: 0.7rem 1.4rem;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  background: white;
+  border: 1px solid #ddd;
+  color: #555;
+}
+
+.btn-recommend-action:hover {
+  background: #f8f9fa;
+  border-color: #ccc;
+}
+
+.btn-recommend-action.active {
+  border-color: #ffd700;
+  color: #333;
+  background: #fffdf0;
+}
+
+.btn-recommend-action .heart {
+  transition: fill 0.2s ease;
+}
+
+.btn-recommend-action.active .heart {
+  fill: #ffd700;
+  stroke: #ffd700;
+}
+
+/* 예산 바 */
+.info-bar-container {
+   display: flex;
+   gap: 1rem;
+   margin-bottom: 2rem;
+}
+
+.budget-overview {
+   flex: 1;
+   display: flex;
+   align-items: baseline;
+   gap: 0.8rem;
+   padding: 1.5rem 2rem;
+   background: #f8f9fa;
+   border: none;
+}
+
+.budget-label { font-weight: 600; color: #555; font-size: 0.95rem; }
+.budget-value { font-size: 1.5rem; font-weight: 800; color: #6a11cb; }
+.budget-sub { font-size: 0.85rem; color: #999; }
+
+.price-notice {
+  flex: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 1rem 1.5rem;
+  background: #fff9db;
+  border: 1px solid #ffec99;
+  color: #664d03;
+  margin-bottom: 1.5rem;
+}
+.price-notice p { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+
+/* 상세 일정 */
+.section-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #222;
+  margin: 3rem 0 1.2rem;
+  display: flex;
+  align-items: center;
+  border-left: 4px solid #6a11cb;
+  padding-left: 0.8rem;
 }
 
 .itinerary-day {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
+  display: flex;
+  padding: 0;
+  overflow: hidden;
+  align-items: stretch;
 }
 
-.itinerary-day h3 {
-  margin-bottom: 0.5rem;
-  color: #2c3e50;
-  font-size: 1.5rem;
-}
-
-.day-description {
-  color: #666;
-  font-style: italic;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.section {
-  margin-top: 1.5rem;
-  padding: 1rem;
+.day-sidebar {
   background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.section h4 {
-  margin-bottom: 0.75rem;
-  color: #495057;
-  font-size: 1.1rem;
-}
-
-.attraction-item,
-.event-item {
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: white;
-  border-radius: 6px;
-  border-left: 3px solid #3498db;
-}
-
-.attraction-name,
-.event-name {
-  font-weight: bold;
-  color: #2c3e50;
-  margin-bottom: 0.25rem;
-}
-
-.attraction-details,
-.event-details {
-  color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 0.25rem;
-}
-
-.attraction-details span {
-  margin-right: 1rem;
-}
-
-.attraction-description,
-.event-description {
-  color: #555;
-  font-size: 0.95rem;
-  margin-top: 0.5rem;
-}
-
-.info-item,
-.meal-item {
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-  background: white;
-  border-radius: 4px;
-}
-
-.estimated-cost {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #e8f5e9;
-  border-radius: 8px;
-  text-align: right;
-}
-
-.estimated-cost p {
-  color: #2e7d32;
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-.empty-itinerary {
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  border-right: 1px solid #eaeaea;
   text-align: center;
-  padding: 2rem;
-  color: #666;
+}
+
+.day-badge {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #6a11cb;
+  margin-bottom: 0.4rem;
+}
+
+.day-date {
+  font-size: 0.85rem;
+  color: #999;
+  font-weight: 500;
+}
+
+.day-content {
+  flex: 1;
+  padding: 2.5rem 2rem;
+}
+
+.day-description-box {
+   background: #fff;
+   border-left: 3px solid #e0e0e0;
+   padding: 0.8rem 1.2rem;
+   margin-bottom: 2.5rem;
+   color: #555;
+   line-height: 1.6;
+   font-size: 0.95rem;
+}
+
+.schedule-container {
+   display: flex;
+   gap: 3rem;
+}
+
+.timeline-section {
+   flex: 2;
+}
+
+.schedule-title {
+   font-size: 1.05rem;
+   color: #444;
+   margin-bottom: 1.2rem;
+   font-weight: 700;
+   display: flex;
+   align-items: center;
+}
+
+.timeline-list {
+   position: relative;
+   padding-left: 0.8rem;
+   border-left: 2px solid #f1f3f5;
+   margin-left: 0.6rem;
+}
+
+/* 타임라인 아이템 공통 */
+.timeline-item {
+   position: relative;
+   display: flex;
+   gap: 1.2rem;
+   margin-bottom: 1.8rem;
+   padding-left: 1rem;
+}
+
+.timeline-item::after {
+   content: '';
+   position: absolute;
+   left: -0.38rem; 
+   top: 0.4rem;
+   width: 8px;
+   height: 8px;
+   border-radius: 50%;
+   background: #fff;
+   border: 2px solid #ddd; /* 기본 회색 */
+}
+
+/* [신규] 시간대별 색상 지정 */
+/* 아침/오전 - 파란색 계열 */
+.timeline-item.period-morning::after {
+  border-color: #3b82f6; /* 파란색 */
+  background: #3b82f6;
+}
+.timeline-item.period-morning .time-marker {
+  color: #3b82f6;
+}
+
+/* 점심/오후 - 주황색 계열 */
+.timeline-item.period-afternoon::after {
+  border-color: #f97316; /* 주황색 */
+  background: #f97316;
+}
+.timeline-item.period-afternoon .time-marker {
+  color: #f97316;
+}
+
+/* 저녁/밤 - 보라색 계열 */
+.timeline-item.period-evening::after {
+  border-color: #8b5cf6; /* 보라색 */
+  background: #8b5cf6;
+}
+.timeline-item.period-evening .time-marker {
+  color: #8b5cf6;
+}
+
+.time-marker {
+   font-size: 0.85rem;
+   font-weight: 700;
+   color: #adb5bd; /* 기본 */
+   min-width: 50px;
+   padding-top: 0.1rem;
+   transition: color 0.2s;
+}
+
+.place-info {
+   flex: 1;
+}
+
+.place-name { font-weight: 700; color: #333; font-size: 1rem; margin-bottom: 0.2rem;}
+.place-desc { font-size: 0.9rem; color: #777; margin: 0; line-height: 1.4; }
+.cost-tag { 
+  font-size: 0.8rem; 
+  color: #666; 
+  background: #f1f3f5;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 0.3rem; 
+}
+
+/* 물류 섹션 */
+.logistics-section {
+   flex: 1;
+   display: flex;
+   flex-direction: column;
+   gap: 1.2rem;
+}
+
+.logistics-card {
+   background: #f8f9fa;
+   padding: 1.2rem;
+   border-radius: 8px;
+   border: 1px solid #f1f3f5;
+}
+
+.logistics-card h4 {
+   margin: 0 0 0.8rem 0;
+   font-size: 0.95rem;
+   color: #666;
+   font-weight: 600;
+   display: flex;
+   align-items: center;
+}
+
+.main-text { font-weight: 600; margin: 0 0 0.2rem 0; font-size: 0.95rem; }
+.sub-text { font-size: 0.85rem; color: #888; margin: 0; }
+
+.transport-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.transport-item {
+   display: flex;
+   justify-content: space-between;
+   align-items: flex-start;
+   font-size: 0.85rem;
+   color: #555;
+   line-height: 1.6;
+}
+.transport-label { 
+  color: #999; 
+  min-width: 40px; 
+  flex-shrink: 0;
+}
+.transport-value { 
+  font-weight: 600; 
+  color: #444; 
+  text-align: right; 
+  flex: 1;
+  word-break: keep-all; 
+  margin-left: 0.5rem;
+}
+
+.daily-cost-summary {
+   margin-top: auto;
+   text-align: right;
+   padding-top: 1rem;
+   border-top: 1px dashed #e0e0e0;
+   color: #666;
+   font-size: 0.9rem;
+}
+.daily-cost-summary strong {
+   display: block;
+   font-size: 1.1rem;
+   color: #6a11cb;
+   margin-top: 0.3rem;
+}
+
+/* 최종 비용 */
+.total-cost-summary {
+   background: #fff;
+   border: 1px solid #6a11cb;
+   text-align: center;
+   padding: 3rem;
+}
+.total-cost-summary h3 { margin-bottom: 2rem; color: #333; font-size: 1.3rem; }
+
+.cost-comparison {
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   gap: 3rem;
+   margin-bottom: 2rem;
+}
+
+.cost-box {
+   text-align: center;
+}
+.cost-box span { display: block; font-size: 0.85rem; color: #999; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.cost-box strong { font-size: 1.4rem; color: #333; }
+.cost-divider { font-size: 1.5rem; color: #e0e0e0; font-weight: 300; }
+
+.cost-result {
+   display: inline-block;
+   padding: 0.6rem 1.5rem;
+   background: #f8f9fa;
+   border-radius: 50px;
+   font-size: 1rem;
+}
+.result-label { color: #666; margin-right: 0.5rem;}
+.result-value { font-weight: 700; }
+.result-value.save { color: #27ae60; }
+.result-value.over { color: #e03131; }
+
+/* 모달 */
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.review-modal {
+   width: 90%; max-width: 460px; padding: 2rem;
+   border: none;
+   box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.modal-header h2 { font-size: 1.3rem; margin: 0; color: #222; }
+.btn-close { 
+  background: none; 
+  border: none; 
+  color: #999; 
+  cursor: pointer; 
+  padding: 0;
+  display: flex;
+}
+.btn-close:hover { color: #333; }
+
+.modal-subtitle { color: #888; margin-bottom: 2rem; font-size: 0.9rem; }
+
+.rating-input { display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-bottom: 1.5rem;}
+.star-container { position: relative; width: 32px; height: 32px; cursor: pointer; }
+.star-icon.bg { fill: #f1f3f5; }
+.star-icon.fill { fill: #ffd700; }
+.rating-text { font-size: 1.4rem; font-weight: 800; color: #6a11cb; margin-left: 0.8rem;}
+
+.review-textarea {
+   width: 100%;
+   background: #f8f9fa;
+   border: 1px solid #e0e0e0;
+   padding: 1rem;
+   border-radius: 8px;
+   resize: none;
+   font-family: inherit;
+   font-size: 0.95rem;
+   transition: all 0.2s;
+}
+.review-textarea:focus { outline: none; border-color: #6a11cb; background: #fff; }
+
+.btn-submit {
+   width: 100%;
+   padding: 1rem;
+   background: #6a11cb;
+   color: white;
+   border: none;
+   border-radius: 8px;
+   font-weight: 600;
+   font-size: 1rem;
+   cursor: pointer;
+   margin-top: 1rem;
+   transition: background 0.2s;
+}
+.btn-submit:hover { background: #5a0eb3; }
+
+/* 로딩/에러 */
+.loading-container { height: 50vh; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #888; }
+.loading-spinner { border: 3px solid #f1f3f5; border-top-color: #6a11cb; border-radius: 50%; width: 36px; height: 36px; animation: spin 1s linear infinite; margin-bottom: 1rem;}
+.error-message-box { text-align: center; padding: 4rem 2rem; }
+.btn-back { background: #555; color: white; border: none; padding: 0.7rem 1.4rem; border-radius: 6px; cursor: pointer; margin-top: 1.5rem; font-size: 0.9rem;}
+
+/* 반응형 */
+@media (max-width: 768px) {
+   .header-section.main-header { padding: 1.5rem; }
+   .header-bottom { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+   .trip-summary-bar { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 1rem;}
+   .recommend-section { width: 100%; margin-top: 0.5rem; }
+   .btn-recommend-action { width: 100%; justify-content: center; }
+   
+   .info-bar-container { flex-direction: column; gap: 1rem;}
+   .budget-overview, .price-notice { width: 100%; }
+
+   .itinerary-day { flex-direction: column; }
+   .day-sidebar { width: 100%; flex-direction: row; justify-content: space-between; padding: 1rem; border-right: none; border-bottom: 1px solid #f1f3f5; }
+   .day-content { padding: 1.5rem; }
+   .schedule-container { flex-direction: column; gap: 2.5rem; }
+   .timeline-section, .logistics-section { flex: auto; }
+   
+   .cost-comparison { gap: 1.5rem; }
 }
 </style>

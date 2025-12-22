@@ -1,13 +1,27 @@
 <script setup>
-import { RouterView, RouterLink } from 'vue-router'
+import { RouterView, RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 
+onMounted(async () => {
+  // 로그인 상태면 프로필 정보 가져오기
+  if (isAuthenticated.value && !authStore.user) {
+    try {
+      await authStore.getProfile()
+    } catch (error) {
+      console.error('프로필 로드 실패:', error)
+    }
+  }
+})
+
 const handleLogout = async () => {
   await authStore.logout()
+  // 로그아웃 후 메인페이지로 이동
+  router.push('/')
 }
 </script>
 
@@ -17,17 +31,20 @@ const handleLogout = async () => {
       <div class="nav-brand">
         <RouterLink to="/">Tripify</RouterLink>
       </div>
-      
       <div class="nav-links">
+        <div class="user-greeting" v-if="authStore.user?.nickname">
+            <span class="greeting-text">{{ authStore.user.nickname }}님 오늘도 좋은 여행하세요</span>
+          </div>
         <RouterLink to="/">홈</RouterLink>
-        
         <template v-if="isAuthenticated">
           <RouterLink to="/trips">내 여행</RouterLink>
           <RouterLink to="/trip/new">여행 계획</RouterLink>
+          <RouterLink to="/recommended">여행 추천</RouterLink>
           <RouterLink to="/settings">마이페이지</RouterLink>
+          
           <button @click="handleLogout" class="btn-link">로그아웃</button>
+          
         </template>
-        
         <template v-else>
           <RouterLink to="/login">로그인</RouterLink>
           <RouterLink to="/signup">회원가입</RouterLink>
@@ -42,9 +59,6 @@ const handleLogout = async () => {
 </template>
 
 <style>
-/* 전역 폰트 및 초기화 */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
-
 * {
   margin: 0;
   padding: 0;
@@ -52,62 +66,71 @@ const handleLogout = async () => {
 }
 
 #app {
-  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  color: #2c3e50;
   min-height: 100vh;
-  background-color: #fff; 
 }
 
-/* 네비게이션 바 스타일 */
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 3rem;
-  background-color: #e0efff; 
-  color: #333;
+  padding: 1rem 2rem;
+  background-color: #3498db;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .nav-brand a {
   font-size: 1.5rem;
-  font-weight: 900;
-  color: #4285f4; 
+  font-weight: bold;
+  color: white;
   text-decoration: none;
 }
 
 .nav-links {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   align-items: center;
 }
 
-/* 링크 텍스트 스타일 수정 */
+.user-greeting {
+  margin-right: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.greeting-text {
+  color: white;
+  font-weight: 500;
+}
+
 .nav-links a,
 .btn-link {
-  color: #333; 
+  color: white;
   text-decoration: none;
-  font-weight: 500;
-  font-size: 1rem;
-  transition: color 0.3s;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background-color 0.3s;
 }
 
 .nav-links a:hover,
 .btn-link:hover {
-  color: #4285f4;
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .btn-link {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
-  font-family: inherit;
-  color: #333;
+  font-size: 1rem;
 }
 
-/* 메인 컨텐츠 영역 */
 .main-content {
   width: 100%;
-  margin: 0 auto;
+  margin: 0 ;
+  padding: 0;
 }
 </style>

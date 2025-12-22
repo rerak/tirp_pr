@@ -1,11 +1,19 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { getFestivals } from '@/api/festivals'
 
 const router = useRouter()
 const searchQuery = ref('')
+const festivals = ref([]) 
+const festivalsMap = ref({}) 
 
-// --- 1. 여행지 데이터 및 랜덤 추천 로직 (기존 유지) ---
+// 북마크 카드 클릭 핸들러
+const handleBookmarkClick = () => {
+  window.open('https://map.kakao.com/', '_blank')
+}
+
+// --- 1. 여행지 데이터 및 랜덤 추천 로직 ---
 const allDestinations = [
   { 
     id: 101, 
@@ -81,6 +89,7 @@ const selectedDate = ref(today)
 const dateList = ref([])
 const scrollContainer = ref(null)
 const displayYear = computed(() => selectedDate.value.getFullYear())
+const displayMonth = computed(() => selectedDate.value.getMonth() + 1)
 
 const generateMonths = () => {
   const months = []
@@ -97,23 +106,29 @@ const selectDate = (date) => { selectedDate.value = date }
 
 const isSelected = (date) => {
   return date.getFullYear() === selectedDate.value.getFullYear() &&
-         date.getMonth() === selectedDate.value.getMonth()
+          date.getMonth() === selectedDate.value.getMonth()
 }
 
-// [추가됨] 이번 달인지 확인하는 함수 (붉은색 강조용)
 const isCurrentMonth = (date) => {
   return date.getFullYear() === today.getFullYear() &&
-         date.getMonth() === today.getMonth()
+          date.getMonth() === today.getMonth()
 }
+
+const monthFestivals = computed(() => {
+  const year = selectedDate.value.getFullYear()
+  const month = selectedDate.value.getMonth() + 1
+  const key = `${year}-${month}` 
+  return festivalsMap.value[key] || [] 
+})
 
 const scrollToCurrentDate = () => {
   if (scrollContainer.value) {
-    const currentIndex = dateList.value.findIndex(d => 
-      d.getFullYear() === today.getFullYear() && 
+    const currentIndex = dateList.value.findIndex(d =>
+      d.getFullYear() === today.getFullYear() &&
       d.getMonth() === today.getMonth()
     )
     if (currentIndex !== -1) {
-      const itemWidth = 60 
+      const itemWidth = 84 
       const containerWidth = scrollContainer.value.clientWidth
       const scrollPos = (currentIndex * itemWidth) - (containerWidth / 2) + (itemWidth / 2)
       scrollContainer.value.scrollLeft = scrollPos
@@ -141,10 +156,34 @@ const goToFestivals = () => {
   router.push({ name: 'festivals' })
 }
 
+const processFestivalsData = (data) => {
+  const map = {}
+  data.forEach(festival => {
+    if (!festival.event_start_date) return
+    const yearStr = festival.event_start_date.substring(0, 4)
+    const monthStr = festival.event_start_date.substring(4, 6)
+    const key = `${parseInt(yearStr)}-${parseInt(monthStr)}`
+    if (!map[key]) { map[key] = [] }
+    if (map[key].length < 5) { map[key].push(festival) }
+  })
+  festivalsMap.value = map
+}
+
+const loadFestivals = async () => {
+  try {
+    const data = await getFestivals()
+    festivals.value = data
+    processFestivalsData(data) 
+  } catch (error) {
+    console.error('축제 데이터 로드 실패:', error)
+  }
+}
+
 onMounted(async () => {
   shuffleAndPick()
   startSlideShow()
   generateMonths()
+  await loadFestivals()
   await nextTick()
   scrollToCurrentDate()
 })
@@ -156,6 +195,8 @@ onUnmounted(() => {
 
 <template>
   <div class="home">
+    <div class="static-bg-wrapper"></div>
+
     <section class="hero-container">
       <transition name="fade" mode="out-in">
          <div 
@@ -217,7 +258,7 @@ onUnmounted(() => {
       </div>
 
       <div class="feature-grid">
-        <div class="feature-card">
+        <div class="feature-card glass-card">
           <div class="icon-circle">
             <span class="icon">🤖</span>
           </div>
@@ -227,7 +268,7 @@ onUnmounted(() => {
           </div>
         </div>
         
-        <div class="feature-card clickable" @click="goToFestivals">
+        <div class="feature-card glass-card clickable" @click="goToFestivals">
           <div class="icon-circle">
             <span class="icon">🎉</span>
           </div>
@@ -238,32 +279,41 @@ onUnmounted(() => {
           </div>
         </div>
         
-        <div class="feature-card">
+        <div class="feature-card glass-card clickable" @click="handleBookmarkClick">
           <div class="icon-circle">
             <span class="icon">⭐</span>
           </div>
           <div class="card-content">
             <h3>나만의 북마크</h3>
             <p>마음에 드는 장소를 발견하셨나요? 저장해두고 언제든 확인하세요.</p>
+            <span class="link-text">장소 북마크하기 &rarr;</span>
           </div>
         </div>
       </div>
     </section>
 
     <section class="calendar-section">
-       <h2 class="calendar-title">월별 일정 확인</h2>
-      <div class="calendar-wrapper">
+      <div class="calendar-header-wrapper">
+        <h2 class="calendar-title">월별 축제 일정</h2>
+        <p class="section-desc">떠나고 싶은 달을 선택하여 축제를 확인해보세요.</p>
+      </div>
+      
+      <div class="calendar-wrapper glass-card">
         <div class="calendar-left">
-          <span class="year-text">YEAR</span>
-          <span class="month-text">{{ displayYear }}</span>
+          <span class="year-text">{{ displayYear }}</span>
+          <span class="month-text">{{ displayMonth }}월</span>
         </div>
         <div class="divider"></div>
-        <button class="nav-btn prev" @click="scroll('left')">←</button>
+        
+        <button class="nav-btn prev" @click="scroll('left')">
+          <span class="arrow-icon"></span>
+        </button>
+        
         <div class="date-scroll-area" ref="scrollContainer">
-          <div 
-            v-for="date in dateList" 
-            :key="date" 
-            class="date-item" 
+          <div
+            v-for="date in dateList"
+            :key="date"
+            class="date-item"
             :class="{ active: isSelected(date), current: isCurrentMonth(date) }"
             @click="selectDate(date)"
           >
@@ -271,15 +321,81 @@ onUnmounted(() => {
             <span class="day-name">월</span>
           </div>
         </div>
-        <button class="nav-btn next" @click="scroll('right')">→</button>
+        
+        <button class="nav-btn next" @click="scroll('right')">
+          <span class="arrow-icon right"></span>
+        </button>
+      </div>
+
+      <div class="festival-list-wrapper">
+        <transition name="fade" mode="out-in">
+          <div v-if="monthFestivals.length > 0" class="month-festivals" :key="selectedDate.toString()">
+            <div class="list-header">
+              <h4>{{ selectedDate.getFullYear() }}년 {{ selectedDate.getMonth() + 1 }}월의 축제</h4>
+              <span class="count-badge">{{ monthFestivals.length }}개</span>
+            </div>
+            <div class="festival-grid">
+              <div
+                v-for="festival in monthFestivals"
+                :key="festival.id"
+                class="festival-card-modern glass-card"
+                @click="router.push({ name: 'festival-detail', params: { id: festival.id } })"
+              >
+                <div class="festival-content">
+                  <div class="festival-category">Festival</div>
+                  <div class="festival-title">{{ festival.title }}</div>
+                  <div class="festival-location">{{ festival.region }}</div>
+                </div>
+                <div class="arrow-indicator">&rarr;</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="no-festivals glass-card" :key="'no-data'">
+            <p>해당 월에 예정된 축제 정보가 없습니다.</p>
+          </div>
+        </transition>
       </div>
     </section>
   </div>
 </template>
 
 <style scoped>
-/* --- Hero 섹션 스타일 (기존 유지) --- */
-.hero-container { position: relative; width: 100%; height: 650px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; color: #fff; background-color: #1f2937; }
+.home {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* --- [수정] 고정형 배경 스타일 (핑크색 연하게 변경) --- */
+.static-bg-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  background-color: #f5f7fa;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(161, 196, 253, 0.5) 0px, transparent 50%),
+    /* [수정] 기존의 쨍한 보라/핑크를 부드러운 연핑크(rgba(255, 182, 193, 0.3))로 변경 */
+    radial-gradient(at 100% 0%, rgba(255, 182, 193, 0.3) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(132, 250, 176, 0.4) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(194, 233, 251, 0.5) 0px, transparent 50%);
+  background-attachment: fixed;
+  background-size: cover;
+  pointer-events: none;
+}
+
+/* --- 유리 질감 클래스 (Glassmorphism) --- */
+.glass-card {
+  background: rgba(255, 255, 255, 0.75) !important; 
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* --- Hero Section --- */
+.hero-container { position: relative; width: 100vw; height: 600px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; color: #fff; background-color: #1f2937; }
 .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; filter: blur(3px) brightness(0.8); z-index: 0; transform: scale(1.05); transition: transform 6s linear; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.8s ease-in-out; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
@@ -311,14 +427,16 @@ onUnmounted(() => {
 .pos-1 { transform: rotate(4deg) translateX(0px) translateY(40px); z-index: 4; }
 .pos-2 { transform: rotate(9deg) translateX(100px) translateY(-20px); z-index: 3; }
 
-/* --- 기타 섹션 스타일 --- */
-.features { padding: 4rem 2rem; max-width: 1200px; margin: 0 auto; }
+/* --- Features Section --- */
+.features { padding: 4rem 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
 .section-header { text-align: center; margin-bottom: 3rem; }
 .features h2 { font-size: 2.2rem; color: #1f2937; font-weight: 800; margin-bottom: 0.5rem; }
 .section-desc { color: #6b7280; font-size: 1.1rem; }
 .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem; }
-.feature-card { background: white; border-radius: 20px; padding: 2.5rem 2rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04); border: 1px solid #f3f4f6; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: flex-start; position: relative; overflow: hidden; }
-.feature-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(66, 133, 244, 0.1); border-color: #bfdbfe; }
+.feature-card { 
+  border-radius: 20px; padding: 2.5rem 2rem; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: flex-start; position: relative; overflow: hidden; 
+}
+.feature-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(66, 133, 244, 0.1) !important; border-color: #bfdbfe !important; }
 .icon-circle { width: 60px; height: 60px; background-color: #eff6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; transition: transform 0.3s ease; }
 .feature-card:hover .icon-circle { transform: scale(1.1) rotate(5deg); background-color: #dbeafe; }
 .icon { font-size: 1.8rem; }
@@ -327,38 +445,80 @@ onUnmounted(() => {
 .feature-card.clickable { cursor: pointer; }
 .link-text { font-size: 0.95rem; font-weight: 600; color: #4285f4; opacity: 0; transform: translateX(-10px); transition: all 0.3s ease; display: inline-block; }
 .feature-card.clickable:hover .link-text { opacity: 1; transform: translateX(0); }
-.calendar-section { max-width: 900px; margin: 0 auto 4rem; padding: 0 2rem; }
-.calendar-title { text-align: center; font-size: 1.8rem; margin-bottom: 1.5rem; color: #333; }
-.calendar-wrapper { display: flex; align-items: center; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); height: 100px; border: 1px solid #eee; }
-.calendar-left { display: flex; flex-direction: column; align-items: center; min-width: 80px; }
-.year-text { font-size: 0.8rem; color: #666; font-weight: bold; }
-.month-text { font-size: 2rem; font-weight: bold; color: #333; line-height: 1; }
-.divider { width: 1px; height: 60%; background-color: #e0e0e0; margin: 0 20px; }
-.nav-btn { background: none; border: none; font-size: 1.2rem; color: #999; cursor: pointer; padding: 0 10px; }
-.date-scroll-area { flex: 1; display: flex; overflow-x: auto; gap: 10px; padding: 5px 0; scrollbar-width: none; }
+
+/* --- Calendar Section --- */
+.calendar-section {
+  max-width: 1000px;
+  margin: 0 auto 6rem;
+  padding: 0 2rem;
+  width: 100%;
+}
+.calendar-header-wrapper { text-align: center; margin-bottom: 3rem; }
+.calendar-title { font-size: 2rem; color: #1f2937; font-weight: 800; margin-bottom: 0.5rem; }
+
+/* 캘린더 컨테이너 */
+.calendar-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 20px 30px;
+  border-radius: 24px;
+  height: 120px;
+  position: relative;
+  z-index: 10;
+}
+.calendar-left { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; min-width: 110px; padding-right: 20px; }
+.year-text { font-size: 0.95rem; color: #94a3b8; font-weight: 600; letter-spacing: -0.02em; }
+.month-text { font-size: 2.2rem; font-weight: 900; color: #1f2937; line-height: 1.1; letter-spacing: -0.03em; }
+.divider { width: 2px; height: 50px; background-color: #f1f5f9; margin: 0 15px; border-radius: 2px; }
+.nav-btn { background: #f8fafc; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
+.nav-btn:hover { background: #eff6ff; transform: scale(1.1); }
+.arrow-icon { width: 8px; height: 8px; border-top: 2px solid #64748b; border-left: 2px solid #64748b; transform: rotate(-45deg); margin-left: 2px; }
+.arrow-icon.right { transform: rotate(135deg); margin-left: -2px; }
+.date-scroll-area { flex: 1; display: flex; overflow-x: auto; gap: 12px; padding: 10px 15px; scrollbar-width: none; margin: 0 10px; }
 .date-scroll-area::-webkit-scrollbar { display: none; }
-.date-item { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 50px; height: 70px; cursor: pointer; border-radius: 8px; color: #666; position: relative; }
-.date-item:hover { background-color: #f5f7fa; }
-.day-num { font-size: 1.4rem; font-weight: 500; margin-bottom: 4px; }
-.day-name { font-size: 0.85rem; }
+.date-item { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 60px; height: 80px; cursor: pointer; border-radius: 16px; color: #94a3b8; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); background: transparent; }
+.date-item:hover { background-color: #f8fafc; color: #64748b; }
+.day-num { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+.day-name { font-size: 0.85rem; font-weight: 500; }
+.date-item.current { position: relative; }
+.date-item.current .day-num { color: #e11d48; }
+.date-item.active { background-color: #4285f4; color: #ffffff !important; box-shadow: 0 8px 16px rgba(66, 133, 244, 0.3); transform: translateY(-2px); }
+.date-item.active .day-num, .date-item.active .day-name { color: #ffffff; }
+.date-item.active::after { display: none; }
 
-/* [수정됨] 이번 달 강조 스타일 */
-.date-item.current .day-num,
-.date-item.current .day-name {
-  color: #e11d48; /* 눈에 띄는 붉은색 */
-  font-weight: 800;
+/* --- 축제 리스트 스타일 --- */
+.festival-list-wrapper { min-height: 500px; margin-top: 3rem; position: relative; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.list-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; padding-left: 5px; }
+.month-festivals h4 { font-size: 1.3rem; font-weight: 700; color: #1f2937; margin: 0; }
+.count-badge { background-color: #eff6ff; color: #4285f4; font-size: 0.85rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.festival-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+
+.festival-card-modern {
+  border-radius: 16px; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; display: flex; justify-content: space-between; align-items: center; position: relative; overflow: hidden;
 }
+.festival-card-modern::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background-color: #4285f4; opacity: 0; transition: opacity 0.3s ease; }
+.festival-card-modern:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1) !important; border-color: #bfdbfe !important; }
+.festival-card-modern:hover::before { opacity: 1; }
+.festival-content { flex: 1; }
+.festival-category { font-size: 0.75rem; font-weight: 700; color: #4285f4; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.festival-title { font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-bottom: 0.3rem; line-height: 1.4; }
+.festival-location { font-size: 0.9rem; color: #64748b; display: flex; align-items: center; }
+.festival-location::before { content: ''; display: inline-block; width: 6px; height: 6px; background-color: #cbd5e1; border-radius: 50%; margin-right: 6px; }
+.arrow-indicator { font-size: 1.2rem; color: #cbd5e1; font-weight: bold; transform: translateX(0); transition: all 0.3s ease; margin-left: 1rem; }
+.festival-card-modern:hover .arrow-indicator { color: #4285f4; transform: translateX(5px); }
 
-/* 선택된 상태 (파란색 + 밑줄) */
-.date-item.active { color: #4285f4; font-weight: bold; }
-
-/* 선택된 상태일 때 색상 덮어쓰기 (선택이 우선) */
-.date-item.active .day-num,
-.date-item.active .day-name {
-  color: #4285f4;
+.no-festivals {
+  width: 100%;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-radius: 16px;
+  color: #64748b;
 }
-
-.date-item.active::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80%; height: 3px; background-color: #4285f4; border-radius: 2px; }
 
 @media (max-width: 768px) {
   .hero-container { height: auto; padding: 4rem 0; }
@@ -371,5 +531,9 @@ onUnmounted(() => {
   .img-box { height: 160px; }
   .pos-0 { transform: rotate(-6deg) translateX(-60px) translateY(-20px); }
   .pos-2 { transform: rotate(9deg) translateX(60px) translateY(-10px); }
+  .calendar-wrapper { flex-direction: column; height: auto; padding: 15px; }
+  .calendar-left { width: 100%; align-items: center; margin-bottom: 15px; padding-right: 0; }
+  .divider { width: 100%; height: 1px; margin: 10px 0; }
+  .festival-grid { grid-template-columns: 1fr; }
 }
 </style>

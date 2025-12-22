@@ -10,6 +10,7 @@ const authStore = useAuthStore()
 const formData = ref({
   username: '',
   email: '',
+  nickname: '',
   password: '',
   password_confirm: '',
 })
@@ -56,10 +57,17 @@ const handleSignup = async () => {
 
 <template>
   <div class="page-container">
-    
+
+    <div class="sky-background">
+      <div class="cloud cloud-1"></div>
+      <div class="cloud cloud-2"></div>
+      <div class="cloud cloud-3"></div>
+      <div class="cloud cloud-4"></div>
+    </div>
+
     <main class="main-content">
-      <div class="signup-card">
-        
+      <div class="signup-card floating-animation">
+
         <transition name="fade">
           <div v-if="showSuccessDialog" class="success-view">
             <div class="icon-success">
@@ -69,12 +77,12 @@ const handleSignup = async () => {
             </div>
             <h2>회원가입 완료!</h2>
             <p class="success-msg">{{ success }}</p>
-            
+
             <div class="notice-box">
               <p>📧 <strong>이메일 인증</strong>이 필요합니다.</p>
               <p class="sub-text">가입하신 이메일로 인증 링크를 보내드렸습니다.<br>인증 후 로그인해주세요.</p>
             </div>
-            
+
             <small>잠시 후 로그인 페이지로 이동합니다...</small>
             <router-link to="/login" class="btn-login-move">
               로그인하러 가기
@@ -110,13 +118,18 @@ const handleSignup = async () => {
             </div>
 
             <div class="form-group">
+              <label>닉네임</label>
+              <input v-model="formData.nickname" type="text" placeholder="홈페이지에 표시될 닉네임을 입력하세요" required />
+            </div>
+
+            <div class="form-group">
               <label>비밀번호</label>
               <div class="password-wrapper">
-                <input 
-                  v-model="formData.password" 
-                  :type="showPassword ? 'text' : 'password'" 
-                  placeholder="비밀번호를 입력해주세요" 
-                  required 
+                <input
+                  v-model="formData.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="비밀번호를 입력해주세요"
+                  required
                 />
                 <button type="button" class="eye-icon" @click="showPassword = !showPassword" tabindex="-1">
                   <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -128,11 +141,11 @@ const handleSignup = async () => {
             <div class="form-group">
               <label>비밀번호 확인</label>
               <div class="password-wrapper">
-                <input 
-                  v-model="formData.password_confirm" 
-                  :type="showConfirmPassword ? 'text' : 'password'" 
-                  placeholder="비밀번호를 다시 입력해주세요" 
-                  required 
+                <input
+                  v-model="formData.password_confirm"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  placeholder="비밀번호를 다시 입력해주세요"
+                  required
                 />
                 <button type="button" class="eye-icon" @click="showConfirmPassword = !showConfirmPassword" tabindex="-1">
                   <svg v-if="showConfirmPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -159,14 +172,47 @@ const handleSignup = async () => {
 /* 1. 폰트 로드 */
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
-/* 2. 전체 레이아웃 */
+/* 2. 전체 레이아웃 (하늘 배경 포함) */
 .page-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: transparent;
+  position: relative;
+  overflow: hidden;
+  
+  /* 로그인 페이지와 동일한 그라데이션 */
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
   color: #333;
+}
+
+/* 3. 구름 애니메이션 구현 (로그인과 동일) */
+.sky-background {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
+.cloud {
+  position: absolute; background: #fff; border-radius: 100px;
+  opacity: 0.8; filter: blur(10px); animation: drift linear infinite;
+}
+.cloud::after, .cloud::before {
+  content: ''; position: absolute; background: inherit; border-radius: 50%;
+}
+.cloud-1 { width: 200px; height: 60px; top: 15%; left: -200px; opacity: 0.6; animation-duration: 45s; }
+.cloud-1::after { width: 80px; height: 80px; top: -40px; left: 30px; }
+.cloud-1::before { width: 70px; height: 70px; top: -30px; left: 100px; }
+.cloud-2 { width: 300px; height: 100px; top: 60%; right: -300px; opacity: 0.4; animation-duration: 60s; animation-direction: reverse; }
+.cloud-2::after { width: 120px; height: 120px; top: -60px; left: 50px; }
+.cloud-2::before { width: 100px; height: 100px; top: -50px; left: 150px; }
+.cloud-3 { width: 150px; height: 50px; top: 80%; left: 20%; opacity: 0.5; animation-duration: 35s; }
+.cloud-3::after { width: 60px; height: 60px; top: -30px; left: 20px; }
+.cloud-4 { width: 250px; height: 80px; top: 10%; right: 10%; opacity: 0.3; animation-duration: 50s; }
+.cloud-4::after { width: 90px; height: 90px; top: -50px; left: 40px; }
+
+@keyframes drift {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100vw); }
 }
 
 /* 메인 컨텐츠 */
@@ -176,34 +222,50 @@ const handleSignup = async () => {
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  z-index: 10;
 }
 
-/* 3. 카드 디자인 */
+/* 4. 카드 디자인 (Glassmorphism + Floating) */
 .signup-card {
   width: 100%;
   max-width: 440px;
   padding: 3.5rem 3rem;
-  background: #ffffff;
-  border-radius: 24px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04), 0 2px 10px rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  transition: transform 0.3s ease;
+  
+  /* 유리 효과 */
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  
+  border-radius: 30px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  
+  /* 둥둥 뜨는 애니메이션 */
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+  50% { transform: translateY(-15px); box-shadow: 0 25px 45px rgba(0,0,0,0.1); }
+  100% { transform: translateY(0px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
 }
 
 /* 인사말 */
 .greeting { text-align: left; margin-bottom: 2rem; }
 .greeting h2 { font-size: 1.1rem; color: #64748b; margin: 0 0 0.5rem 0; font-weight: 500; }
 .greeting h1 { font-size: 2rem; font-weight: 800; color: #1e293b; margin: 0 0 0.5rem 0; letter-spacing: -0.5px; }
-.greeting p { color: #94a3b8; font-size: 0.95rem; margin: 0; }
+.greeting p { color: #64748b; font-size: 0.95rem; margin: 0; }
 
-/* 4. 폼 스타일 */
+/* 5. 폼 스타일 */
 .signup-form { display: flex; flex-direction: column; gap: 1.25rem; }
 .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
 .form-group label { font-size: 0.9rem; font-weight: 600; color: #475569; margin-left: 4px; }
+
+/* Input 스타일 (반투명 적용) */
 .form-group input {
   width: 100%;
   padding: 0.95rem 1.25rem;
-  background-color: #f8fafc;
+  background-color: rgba(248, 250, 252, 0.8);
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   font-size: 1rem;
@@ -214,8 +276,8 @@ const handleSignup = async () => {
 }
 .form-group input:focus {
   background-color: #fff;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  border-color: #7dd3fc;
+  box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.2);
 }
 
 /* 비밀번호 토글 */
@@ -225,45 +287,59 @@ const handleSignup = async () => {
   position: absolute; top: 50%; right: 1.25rem; transform: translateY(-50%);
   background: none; border: none; cursor: pointer; color: #94a3b8; padding: 0; display: flex; align-items: center;
 }
+.eye-icon:hover { color: #475569; }
 .eye-icon svg { width: 20px; height: 20px; }
 
-/* 버튼 */
+/* 버튼 (그라데이션 적용) */
 .btn-primary {
-  background-color: #1e293b; color: #fff; padding: 1.1rem;
+  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+  color: #fff; padding: 1.1rem;
   border-radius: 12px; border: none; font-weight: 700; font-size: 1.05rem;
-  cursor: pointer; margin-top: 1rem; transition: all 0.2s;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%;
+  cursor: pointer; margin-top: 1rem; transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3); width: 100%;
 }
 .btn-primary:hover {
-  background-color: #334155; transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.4);
 }
 
 /* 하단 링크 */
 .signup-footer { margin-top: 2rem; text-align: center; font-size: 0.95rem; color: #64748b; }
-.link-bold { color: #1e293b; font-weight: 700; text-decoration: none; margin-left: 0.5rem; position: relative; }
-.link-bold:hover { text-decoration: underline; }
+.link-bold { color: #0ea5e9; font-weight: 700; text-decoration: none; margin-left: 0.5rem; position: relative; }
+.link-bold:hover { color: #3b82f6; }
 
-/* 5. 성공 화면 스타일 */
+/* 6. 성공 화면 스타일 (테마 통합) */
 .success-view { text-align: center; padding: 1rem 0; }
 .icon-success {
-  width: 70px; height: 70px; border-radius: 50%; background-color: #dcfce7; color: #16a34a;
+  width: 70px; height: 70px; border-radius: 50%;
+  background-color: #dcfce7; color: #16a34a; /* 초록색 포인트 유지 */
   display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 .icon-success svg { width: 36px; height: 36px; }
 .success-view h2 { font-size: 1.8rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem; }
 .success-msg { color: #16a34a; font-weight: 600; margin-bottom: 2rem; }
+
 .notice-box {
-  background-color: #f8fafc; padding: 1.5rem; border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.6); /* 유리 효과 위에서 어색하지 않게 투명도 조절 */
+  padding: 1.5rem; border-radius: 12px;
   border: 1px solid #e2e8f0; margin-bottom: 2rem; text-align: left;
 }
 .notice-box p { margin: 0.25rem 0; font-size: 0.95rem; color: #334155; }
 .sub-text { font-size: 0.85rem !important; color: #64748b !important; margin-top: 0.5rem !important; line-height: 1.4; }
+
 .btn-login-move {
-  display: block; width: 100%; text-align: center; background-color: #3b82f6; color: white;
-  padding: 1rem; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 1rem;
+  display: block; width: 100%; text-align: center;
+  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+  color: white; padding: 1rem; border-radius: 12px; text-decoration: none;
+  font-weight: bold; margin-top: 1rem;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
 }
-.btn-login-move:hover { background-color: #2563eb; }
+.btn-login-move:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.4);
+}
 
 /* 에러 메시지 */
 .error-message {
@@ -272,12 +348,14 @@ const handleSignup = async () => {
   border: 1px solid #fecaca; display: flex; align-items: center; gap: 0.5rem;
 }
 
-/* 애니메이션 */
+/* 애니메이션 트랜지션 */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* 모바일 대응 */
 @media (max-width: 640px) {
-  .signup-card { padding: 2.5rem 1.5rem; box-shadow: none; border: none; }
+  .signup-card { padding: 2.5rem 1.5rem; box-shadow: none; border: none; background: transparent; backdrop-filter: none; animation: none; }
+  .page-container { background: #fff; }
+  .sky-background { display: none; }
 }
 </style>
