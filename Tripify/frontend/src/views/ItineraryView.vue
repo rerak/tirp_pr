@@ -122,15 +122,13 @@ const isOwner = computed(() => {
   return planUser === currentUser
 })
 
-// [변경됨] 별점 채우기 퍼센티지 계산 (1단위)
+// 별점 채우기 퍼센티지 계산 (1단위)
 const getStarFill = (index) => {
-  // 현재 점수가 해당 인덱스보다 크거나 같으면 100%, 아니면 0%
   return rating.value >= index ? '100%' : '0%'
 }
 
-// [변경됨] 별점 설정 (1단위)
+// 별점 설정 (1단위)
 const setRating = (index) => {
-  // 반쪽(0.5) 로직 제거하고 인덱스 그대로 사용
   rating.value = index
 }
 
@@ -318,6 +316,7 @@ onMounted(async () => {
 
     <div v-else-if="tripStore.currentPlan" class="itinerary-content">
       
+      <!-- 헤더 섹션 -->
       <div class="header-section content-card main-header">
         <div class="header-top">
           <span class="location-badge">{{ tripStore.currentPlan.region }}</span>
@@ -382,6 +381,7 @@ onMounted(async () => {
         </div>
       </div>
 
+      <!-- 예산 및 안내 -->
       <div class="info-bar-container">
         <div class="budget-overview content-card">
           <span class="budget-label">총 예산</span>
@@ -398,6 +398,7 @@ onMounted(async () => {
         </div>
       </div>
 
+      <!-- 일정 목록 -->
       <div v-if="tripStore.currentPlan.itineraries && tripStore.currentPlan.itineraries.length > 0" class="itineraries">
         <h2 class="section-title">상세 일정표</h2>
         
@@ -415,6 +416,7 @@ onMounted(async () => {
             <div class="schedule-container">
               <div class="timeline-section">
                 
+                <!-- 관광지 -->
                 <template v-if="itinerary.attractions && itinerary.attractions.length > 0">
                   <h4 class="schedule-title">
                     <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -439,6 +441,7 @@ onMounted(async () => {
                   </div>
                 </template>
 
+                <!-- 식사 -->
                 <template v-if="itinerary.meals_info && Object.keys(itinerary.meals_info).length > 0">
                   <h4 class="schedule-title" style="margin-top: 2rem;">
                     <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -466,6 +469,7 @@ onMounted(async () => {
                   </div>
                 </template>
 
+                <!-- 축제/행사 -->
                 <template v-if="itinerary.events_info && itinerary.events_info.length > 0">
                   <h4 class="schedule-title" style="margin-top: 2rem;">
                     <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -495,6 +499,7 @@ onMounted(async () => {
               </div>
 
               <div class="logistics-section">
+                <!-- 숙소 -->
                 <div v-if="itinerary.accommodation_info?.name" class="logistics-card">
                   <h4>
                     <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -509,6 +514,7 @@ onMounted(async () => {
                   <p class="sub-text" v-if="itinerary.accommodation_info.cost">₩{{ itinerary.accommodation_info.cost.toLocaleString() }}</p>
                 </div>
 
+                <!-- 교통 -->
                 <div v-if="itinerary.transportation_info && Object.keys(itinerary.transportation_info).length > 0" class="logistics-card">
                   <h4>
                     <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -527,6 +533,7 @@ onMounted(async () => {
                   </div>
                 </div>
 
+                <!-- 일일 비용 -->
                 <div v-if="itinerary.estimated_cost" class="daily-cost-summary">
                   <span>일일 예상 비용</span>
                   <strong>{{ itinerary.estimated_cost.toLocaleString() }}원</strong>
@@ -536,6 +543,7 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- 총 비용 -->
         <div v-if="totalEstimatedCost > 0" class="total-cost-summary content-card">
           <h3>전체 예상 여행 경비</h3>
           <div class="cost-comparison">
@@ -564,6 +572,7 @@ onMounted(async () => {
       </div>
     </div>
 
+    <!-- 계획 수정 모달 -->
     <transition name="modal">
       <div v-if="showModifyModal" class="modal-overlay" @click.self="closeModifyModal">
         <div class="modal-content content-card modify-modal">
@@ -600,6 +609,7 @@ onMounted(async () => {
       </div>
     </transition>
 
+    <!-- 후기 작성 모달 -->
     <transition name="modal">
       <div v-if="showReviewModal" class="modal-overlay" @click.self="closeReviewModal">
         <div class="modal-content content-card review-modal">
@@ -686,7 +696,7 @@ onMounted(async () => {
   width: 1.1rem;
   height: 1.1rem;
   margin-right: 0.4rem;
-  color: #6a11cb;
+  color: #2F80ED;
   vertical-align: text-bottom;
 }
 
@@ -724,7 +734,7 @@ onMounted(async () => {
 
 .location-badge {
   background: #f3e8ff;
-  color: #6a11cb;
+  color: #FF4757;
   padding: 0.4rem 0.8rem;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -801,29 +811,38 @@ onMounted(async () => {
 
 .btn-modify {
   padding: 0.7rem 1.4rem;
-  border-radius: 8px;
+  border-radius: 50px; 
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s ease;
-  background: #1e90ff;
-  border: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  background:  #2F80ED;
+  border: 1px solid transparent; 
   color: white;
+  box-shadow: 0 4px 6px rgba(106, 17, 203, 0.2); 
+}
+.btn-modify:hover:not(:disabled) {
+  background:#2F80ED;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px #2F80ED;
 }
 
-.btn-modify:hover:not(:disabled) {
-  background: #1873cc;
-  transform: translateY(-1px);
+/* 클릭 효과 */
+.btn-modify:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(106, 17, 203, 0.2);
 }
 
 .btn-modify:disabled {
-  opacity: 0.6;
+  background: #a5a5a5;
+  box-shadow: none;
+  opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
 }
-
 /* 추천 버튼 */
 .btn-recommend-action {
   padding: 0.7rem 1.4rem;
@@ -1342,17 +1361,9 @@ onMounted(async () => {
 .click-area {
   position: absolute;
   top: 0;
-  width: 50%;
   height: 100%;
-  z-index: 1;
-}
-
-.click-area.left {
-  left: 0;
-}
-
-.click-area.right {
-  right: 0;
+  z-index: 10;
+  cursor: pointer;
 }
 
 .rating-text {

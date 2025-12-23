@@ -169,10 +169,10 @@ const handleSignup = async () => {
 </template>
 
 <style scoped>
-/* 1. 폰트 로드 */
+/* 폰트 로드 */
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
-/* 2. 전체 레이아웃 (하늘 배경 포함) */
+/* 전체 레이아웃 (하늘 배경 포함) */
 .page-container {
   min-height: 100vh;
   display: flex;
@@ -186,7 +186,7 @@ const handleSignup = async () => {
   color: #333;
 }
 
-/* 3. 구름 애니메이션 구현 */
+/* 구름 애니메이션 구현 */
 .sky-background {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
@@ -225,7 +225,7 @@ const handleSignup = async () => {
   z-index: 10;
 }
 
-/* 4. 카드 디자인 (Glassmorphism + Floating) */
+/* 카드 디자인 (Glassmorphism + Floating) */
 .signup-card {
   width: 100%;
   max-width: 440px;
@@ -256,7 +256,7 @@ const handleSignup = async () => {
 .greeting h1 { font-size: 2rem; font-weight: 800; color: #1e293b; margin: 0 0 0.5rem 0; letter-spacing: -0.5px; }
 .greeting p { color: #64748b; font-size: 0.95rem; margin: 0; }
 
-/* 5. 폼 스타일 */
+/* 폼 스타일 */
 .signup-form { display: flex; flex-direction: column; gap: 1.25rem; }
 .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
 .form-group label { font-size: 0.9rem; font-weight: 600; color: #475569; margin-left: 4px; }
@@ -308,7 +308,7 @@ const handleSignup = async () => {
 .link-bold { color: #0ea5e9; font-weight: 700; text-decoration: none; margin-left: 0.5rem; position: relative; }
 .link-bold:hover { color: #3b82f6; }
 
-/* 6. 성공 화면 스타일 */
+/* 성공 화면 스타일 */
 .success-view { text-align: center; padding: 1rem 0; }
 .icon-success {
   width: 70px; height: 70px; border-radius: 50%;

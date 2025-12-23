@@ -32,6 +32,9 @@ const formatDate = (dateString) => {
     day: '2-digit'
   })
 }
+const formatRating = (rating) => {
+  return Number(rating).toFixed(1)
+}
 
 const getDuration = (startDate, endDate) => {
   const start = new Date(startDate)
@@ -83,7 +86,7 @@ onMounted(() => {
           </div>
           <div class="rating-badge">
             <span class="star">★</span>
-            <span class="score">{{ plan.rating }}</span>
+            <span class="score">{{ formatRating(plan.rating) }}</span>
           </div>
         </div>
 
@@ -178,7 +181,7 @@ onMounted(() => {
 }
 
 .plan-card:hover {
-  border-color: #667eea;
+  border-color: #2F80ED;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
   transform: translateY(-2px);
 }
@@ -201,7 +204,7 @@ onMounted(() => {
 .region-label {
   font-size: 0.8rem;
   font-weight: 700;
-  color: #667eea;
+  color: #2F80ED;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -254,7 +257,7 @@ onMounted(() => {
 }
 
 .duration {
-  color: #667eea;
+  color: #2F80ED;
   font-weight: 600;
   margin-left: 4px;
   font-size: 0.9rem;

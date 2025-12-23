@@ -1,9 +1,10 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useTripStore } from '@/stores/trip'
 
 const router = useRouter()
+const route = useRoute()
 const tripStore = useTripStore()
 
 const formData = ref({
@@ -17,7 +18,14 @@ const formData = ref({
   accommodation_type: 'hotel',
 })
 
-// 지역 옵션
+// URL query에서 검색어를 받아서 region에 설정
+onMounted(() => {
+  if (route.query.search) {
+    formData.value.region = route.query.search
+  }
+})
+
+// 지역 옵션 (실제 tourism_data 기반)
 const regions = [
   '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시',
   '대전광역시', '울산광역시', '세종특별자치시',
@@ -192,8 +200,8 @@ const handleSubmit = async () => {
 .layout-container {
   display: flex;
   justify-content: center;
-  align-items: flex-start; /* 상단 정렬 */
-  padding: 100px 40px; /* 상단 여백 확보 */
+  align-items: flex-start;
+  padding: 100px 40px;
   min-height: 100vh;
   color: #111;
   background-color: #ffffff;
@@ -211,7 +219,6 @@ const handleSubmit = async () => {
 .form-card {
   background: #ffffff;
   border: 1px solid #e5e7eb; 
-  /* [수정됨] 그림자 강화: 더 넓고 진하게 */
   box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.15);
   border-radius: 24px;
   padding: 56px;
@@ -269,7 +276,7 @@ const handleSubmit = async () => {
 .label {
   font-size: 13px;
   font-weight: 700;
-  color: #2563eb; 
+  color: #2F80ED;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 4px;
@@ -312,8 +319,13 @@ input:hover, select:hover {
 input:focus, select:focus {
   outline: none;
   background-color: #fff;
-  border-color: #2563eb;
+  border-color: #2F80ED;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
 }
 
 /* Preferences Layout */
@@ -372,6 +384,14 @@ input:focus, select:focus {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+.btn-emoji {
+  font-size: 16px;
+}
+
+.btn-text {
+  font-size: 14px;
+}
+
 /* Submit Button */
 .action-area {
   margin-top: 20px;
@@ -386,6 +406,8 @@ input:focus, select:focus {
   color: #fff;
   font-size: 18px;
   font-weight: 700;
+  font-family: inherit;
+  letter-spacing: -0.01em;
   border: none;
   border-radius: 16px;
   cursor: pointer;
@@ -398,10 +420,15 @@ input:focus, select:focus {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
 .submit-btn:disabled {
   background: #e5e7eb;
   color: #9ca3af;
   cursor: not-allowed;
+  transform: none;
 }
 
 .error-message {

@@ -1,6 +1,10 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
+
+const router = useRouter()
+const route = useRoute()
 
 const formData = ref({
   email: '',
@@ -11,6 +15,17 @@ const success = ref('')
 const loading = ref(false)
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+
+// 토큰이 있으면 비밀번호 재설정 확인 페이지로 리다이렉트
+onMounted(() => {
+  const token = route.query.token
+  if (token) {
+    router.replace({
+      name: 'reset-password-confirm',
+      query: { token }
+    })
+  }
+})
 
 const handleSubmit = async () => {
   try {
@@ -237,7 +252,7 @@ const handleSubmit = async () => {
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* 하단 링크 (수정된 디자인 적용) */
+/* 하단 링크 */
 .links { 
   text-align: center; 
   margin-top: 2rem; 
@@ -255,7 +270,7 @@ const handleSubmit = async () => {
   font-size: 0.95rem; 
   font-weight: 600; 
   transition: all 0.2s;
-  white-space: nowrap; /* 줄바꿈 방지 */
+  white-space: nowrap;
 }
 
 .link-back svg {

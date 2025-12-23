@@ -446,7 +446,7 @@ onMounted(() => {
   display: block;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #6a11cb;
+  color: #2F80ED;
   letter-spacing: 2px;
   text-transform: uppercase;
   margin-bottom: 0.5rem;
@@ -529,7 +529,7 @@ onMounted(() => {
 
 .filter-select:focus {
   outline: none;
-  border-color: #6a11cb;
+  border-color: #2F80ED;
   box-shadow: 0 0 0 3px rgba(106, 17, 203, 0.1);
 }
 
@@ -571,8 +571,8 @@ onMounted(() => {
 }
 
 .reset-button:hover {
-  border-color: #6a11cb;
-  color: #6a11cb;
+  border-color: #FF4757;
+  color: #FF4757;
   background-color: #fcfaff;
   box-shadow: 0 4px 12px rgba(106, 17, 203, 0.1);
   transform: translateY(-1px);
@@ -669,7 +669,7 @@ onMounted(() => {
 
 .category-text {
   font-size: 0.8rem;
-  color: #6a11cb;
+  color: #2F80ED;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -785,7 +785,7 @@ onMounted(() => {
 
 .pagination-btn {
   padding: 0.6rem 1.2rem;
-  background-color: #6a11cb;
+  background-color: #2F80ED;
   color: white;
   border: none;
   border-radius: 10px;
@@ -796,7 +796,7 @@ onMounted(() => {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background-color: #5a0db8;
+  background-color: #2F80ED;
   transform: translateY(-1px);
 }
 
@@ -830,13 +830,13 @@ onMounted(() => {
 
 .pagination-page:hover {
   background-color: #f8f9fa;
-  border-color: #6a11cb;
+  border-color: #2F80ED;
 }
 
 .pagination-page.active {
-  background-color: #6a11cb;
+  background-color: #2F80ED;
   color: white;
-  border-color: #6a11cb;
+  border-color: #2F80ED;
   font-weight: 700;
 }
 

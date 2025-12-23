@@ -81,6 +81,7 @@
     <div v-else class="loading-container">
       <div class="loader"></div>
     </div>
+
   </div>
 </template>
 
@@ -529,7 +530,6 @@ const copyAddress = async () => {
     alert('주소가 클립보드에 복사되었습니다!')
   } catch (err) {
     console.error('주소 복사 실패:', err)
-    // 폴백: 수동 복사
     const textArea = document.createElement('textarea')
     textArea.value = festival.value.address
     document.body.appendChild(textArea)
@@ -550,7 +550,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 기본 설정 */
+/* 1. 페이지 전체 스타일 */
 * {
   box-sizing: border-box;
 }
@@ -562,7 +562,6 @@ onMounted(() => {
   color: #191f28;
 }
 
-/* 1. 히어로 섹션 (이미지 품질 개선) */
 .hero-section {
   width: 100%;
   height: 50vh;
@@ -633,7 +632,7 @@ onMounted(() => {
 }
 
 .tag.region {
-  color: #3182f6;
+  color: #2F80ED;
   background-color: rgba(49, 130, 246, 0.1);
 }
 
@@ -883,4 +882,5 @@ onMounted(() => {
     padding: 2rem 1rem 3rem;
   }
 }
+
 </style>

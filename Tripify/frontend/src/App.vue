@@ -2,6 +2,7 @@
 import { RouterView, RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { computed, onMounted } from 'vue'
+import tripifyLogo from '@/assets/img/logo1.png'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -27,16 +28,17 @@ const handleLogout = async () => {
   <div id="app">
     <nav class="navbar">
       <div class="nav-brand">
-        <RouterLink to="/">Tripify</RouterLink>
+        <RouterLink to="/">
+          <img :src="tripifyLogo" alt="Tripify" class="logo-image" />
+        </RouterLink>
       </div>
+
       <div class="nav-links">
-        <RouterLink to="/">홈</RouterLink>
         <template v-if="isAuthenticated">
           <div class="user-greeting" v-if="authStore.user?.nickname">
-            <span class="greeting-text"><strong>{{ authStore.user.nickname }}</strong>님 안녕하세요</span>
+            <span class="greeting-text"><strong>{{ authStore.user.nickname }}</strong>님 오늘도 좋은 여행하세요</span>
           </div>
           <RouterLink to="/trips">내 여행</RouterLink>
-          <RouterLink to="/trip/new">여행 계획</RouterLink>
           <RouterLink to="/recommended">추천 여행지</RouterLink>
           <RouterLink to="/settings">마이페이지</RouterLink>
           <button @click="handleLogout" class="btn-link">로그아웃</button>
@@ -71,23 +73,28 @@ const handleLogout = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  /* 배경색을 흰색으로 변경하고 그라데이션 제거 */
+  height: 73px;
+  padding: 0 2rem;
+  
   background-color: #ffffff;
   color: #333333;
-  /* 하단 구분선 추가 */
   border-bottom: 1px solid #e1e4e8;
-  /* 그림자는 제거하거나 아주 연하게 유지 */
   box-shadow: none;
 }
 
+
+.logo-image {
+  height: 73px; 
+  width: auto;
+  display: block;
+  mix-blend-mode: multiply;
+}
+
 .nav-brand a {
-  font-size: 1.5rem;
-  font-weight: 800;
-  /* 로고 색상을 보라색 포인트로 변경 */
-  color: #6a11cb;
+  display: flex;
+  align-items: center;
   text-decoration: none;
-  letter-spacing: -0.5px;
+  height: 100%;
 }
 
 .nav-links {
@@ -99,9 +106,8 @@ const handleLogout = async () => {
 .user-greeting {
   margin-right: 0.5rem;
   padding: 0.4rem 0.8rem;
-  /* 배지 배경색을 연한 회색으로 변경 */
   background-color: #f1f3f5;
-  border-radius: 50px; 
+  border-radius: 50px;
   font-size: 0.85rem;
 }
 
@@ -111,13 +117,12 @@ const handleLogout = async () => {
 }
 
 .greeting-text strong {
-  color: #6a11cb;
+  color: #2F80ED;
   font-weight: 600;
 }
 
 .nav-links a,
 .btn-link {
-  /* 링크 글자색을 진한 회색으로 변경 */
   color: #495057;
   text-decoration: none;
   padding: 0.5rem 0.8rem;
@@ -128,15 +133,13 @@ const handleLogout = async () => {
 
 .nav-links a:hover,
 .btn-link:hover {
-  /* 호버 시 배경색과 글자색 변경 */
   background-color: #f8f9fa;
-  color: #6a11cb; /* 브랜드 컬러 */
+  color: #2F80ED;
   transform: translateY(-1px);
 }
 
 .nav-links a.router-link-active {
-  /* 현재 활성화된 메뉴 강조 */
-  color: #6a11cb;
+  color: #2F80ED;
   font-weight: 600;
 }
 
@@ -149,5 +152,7 @@ const handleLogout = async () => {
 
 .main-content {
   width: 100%;
+  margin: 0;
+  padding: 0;
 }
 </style>

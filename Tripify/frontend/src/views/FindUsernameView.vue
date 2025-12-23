@@ -241,12 +241,12 @@ const handleSubmit = async () => {
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* 하단 링크 (수정된 부분) */
+/* 하단 링크 */
 .links { 
   text-align: center; 
   margin-top: 2rem; 
   display: flex; 
-  justify-content: center; /* 중앙 정렬 */
+  justify-content: center;
 }
 
 .link-back {
@@ -259,10 +259,9 @@ const handleSubmit = async () => {
   font-size: 0.95rem; 
   font-weight: 600; 
   transition: all 0.2s;
-  white-space: nowrap; /* 핵심: 줄바꿈 방지 */
+  white-space: nowrap;
 }
 
-/* 아이콘 크기 고정 */
 .link-back svg {
   width: 1.2rem;
   height: 1.2rem;
@@ -271,7 +270,7 @@ const handleSubmit = async () => {
 
 .link-back:hover { 
   color: #0ea5e9; 
-  transform: translateX(-3px); /* 왼쪽으로 살짝 이동 */
+  transform: translateX(-3px);
 }
 
 /* 모바일 */

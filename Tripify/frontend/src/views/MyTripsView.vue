@@ -1,12 +1,17 @@
 <script setup>
 import { onMounted, ref, computed, watch } from 'vue'
 import { useTripStore } from '@/stores/trip'
+import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { tripAPI } from '@/api/trip'
+import { placeAPI } from '@/api/place'
+import KakaoMapSearch from '@/components/KakaoMapSearch.vue'
 
 const tripStore = useTripStore()
+const authStore = useAuthStore()
 const router = useRouter()
 
-// --- 색상 팔레트 ---
+// --- 색상 팔레트 (확장) ---
 const colorPalette = [
   { bg: '#e3f2fd', text: '#1565c0' }, // Blue
   { bg: '#e8f5e9', text: '#2e7d32' }, // Green
@@ -56,7 +61,6 @@ const isToday = (day) => {
 // --- 일정 정렬 ---
 const sortedPlans = computed(() => {
   return [...tripStore.plans].sort((a, b) => {
-    // 시작일이 빠른 순, 같으면 긴 일정 순
     const startA = new Date(a.start_date)
     const startB = new Date(b.start_date)
     if (startA - startB !== 0) return startA - startB
@@ -100,7 +104,7 @@ const getPlanClass = (day, plan) => {
   return classes.join(' ')
 }
 
-// 텍스트 너비 계산 (연결된 느낌을 위해 여백 보정)
+// 텍스트 너비 계산
 const getSegmentWidth = (day, plan) => {
   const targetDate = new Date(currentYear.value, currentMonth.value, day)
   const dayOfWeek = targetDate.getDay()
@@ -113,47 +117,132 @@ const getSegmentWidth = (day, plan) => {
   const daysLeftInPlan = Math.floor((endDate - targetDate) / msPerDay) + 1
 
   const span = Math.min(daysLeftInWeek, daysLeftInPlan)
-  
-  // 패딩이 없어졌으므로 계산식 단순화 (100% * span + 경계선 보정)
   return `calc(100% * ${span} + ${span}px - 12px)`
 }
 
 // --- 위시리스트 기능 ---
 const newWish = ref('')
-const savedWishlist = localStorage.getItem('my-trip-wishlist')
-const wishlist = ref(savedWishlist ? JSON.parse(savedWishlist) : [
-  { id: 1, text: '제주도 한라산 등반', checked: false },
-  { id: 2, text: '부산 해운대 요트 투어', checked: false },
-])
+const wishlist = ref([])
+const isLoadingWishlist = ref(false)
 
-watch(wishlist, (newVal) => {
-  localStorage.setItem('my-trip-wishlist', JSON.stringify(newVal))
-}, { deep: true })
-
-const addWish = () => {
-  if (newWish.value.trim()) {
-    wishlist.value.push({
-      id: Date.now(),
-      text: newWish.value,
-      checked: false
-    })
-    newWish.value = ''
+// 위시리스트 조회
+const fetchWishlists = async () => {
+  if (!authStore.isAuthenticated) {
+    wishlist.value = []
+    return
+  }
+  
+  try {
+    isLoadingWishlist.value = true
+    const response = await tripAPI.getWishlists()
+    wishlist.value = response.data
+  } catch (error) {
+    console.error('위시리스트 조회 실패:', error)
+    wishlist.value = []
+  } finally {
+    isLoadingWishlist.value = false
   }
 }
 
-const removeWish = (id) => {
-  wishlist.value = wishlist.value.filter(item => item.id !== id)
+// 위시리스트 추가
+const addWish = async () => {
+  if (!newWish.value.trim()) return
+  
+  if (!authStore.isAuthenticated) {
+    alert('로그인이 필요합니다.')
+    return
+  }
+  
+  try {
+    const response = await tripAPI.createWishlist({
+      text: newWish.value.trim(),
+      checked: false
+    })
+    wishlist.value.push(response.data)
+    newWish.value = ''
+  } catch (error) {
+    console.error('위시리스트 추가 실패:', error)
+    alert('위시리스트 추가에 실패했습니다.')
+  }
 }
 
-// --- 추천 여행지 ---
-const recommendations = ref([
-  { id: 1, title: '강원도 평창', tag: '#겨울왕국 #스키', color: '#E3F2FD', icon: '❄️' },
-  { id: 2, title: '여수 밤바다', tag: '#야경 #낭만포차', color: '#E8EAF6', icon: '🌊' },
-  { id: 3, title: '전주 한옥마을', tag: '#먹방 #한복체험', color: '#F3E5F5', icon: '🏯' },
-])
+// 위시리스트 체크 상태 변경
+const toggleWish = async (item) => {
+  if (!authStore.isAuthenticated) return
+  
+  try {
+    await tripAPI.updateWishlist(item.id, {
+      checked: !item.checked
+    })
+    item.checked = !item.checked
+  } catch (error) {
+    console.error('위시리스트 업데이트 실패:', error)
+  }
+}
+
+// 위시리스트 삭제
+const removeWish = async (id) => {
+  if (!authStore.isAuthenticated) return
+  
+  try {
+    await tripAPI.deleteWishlist(id)
+    wishlist.value = wishlist.value.filter(item => item.id !== id)
+  } catch (error) {
+    console.error('위시리스트 삭제 실패:', error)
+    alert('위시리스트 삭제에 실패했습니다.')
+  }
+}
+
+// --- 북마크 기능 ---
+const bookmarks = ref([])
+const isLoadingBookmarks = ref(false)
+const showBookmarkModal = ref(false)
+const selectedBookmark = ref(null)
+
+// 북마크 조회
+const fetchBookmarks = async () => {
+  if (!authStore.isAuthenticated) {
+    bookmarks.value = []
+    return
+  }
+  
+  try {
+    isLoadingBookmarks.value = true
+    const response = await placeAPI.getBookmarks()
+    bookmarks.value = response.data
+  } catch (error) {
+    console.error('북마크 조회 실패:', error)
+    bookmarks.value = []
+  } finally {
+    isLoadingBookmarks.value = false
+  }
+}
+
+// 북마크 클릭 시 모달 열기
+const openBookmarkModal = (bookmark) => {
+  selectedBookmark.value = bookmark
+  showBookmarkModal.value = true
+}
+
+// 북마크 삭제
+const removeBookmark = async (id, event) => {
+  event.stopPropagation() // 클릭 이벤트 전파 방지
+  if (!authStore.isAuthenticated) return
+  
+  try {
+    await placeAPI.deleteBookmark(id)
+    bookmarks.value = bookmarks.value.filter(item => item.id !== id)
+  } catch (error) {
+    console.error('북마크 삭제 실패:', error)
+    alert('북마크 삭제에 실패했습니다.')
+  }
+}
+
 
 onMounted(async () => {
   await tripStore.fetchPlans()
+  await fetchWishlists()
+  await fetchBookmarks()
 })
 
 const goToTrip = (id) => {
@@ -167,11 +256,13 @@ const goToCreate = () => {
 
 <template>
   <div class="my-trips-view">
+    <!-- 고정 배경 -->
     <div class="static-bg-wrapper"></div>
 
     <div v-if="tripStore.loading" class="loading">로딩 중...</div>
 
     <div v-else class="content-wrapper">
+      <!-- 달력 섹션 -->
       <div class="calendar-section glass-card">
         <div class="calendar-header">
           <div class="month-nav">
@@ -179,8 +270,8 @@ const goToCreate = () => {
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <div class="current-date-display">
-                <span class="year-label">{{ currentYear }}</span>
-                <span class="month-label">{{ currentMonth + 1 }}월</span>
+              <span class="year-label">{{ currentYear }}</span>
+              <span class="month-label">{{ currentMonth + 1 }}월</span>
             </div>
             <button class="nav-btn" @click="changeMonth(1)">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -194,7 +285,7 @@ const goToCreate = () => {
         <div class="calendar-board">
           <div class="week-header">
             <div v-for="day in weekDays" :key="day" class="weekday" :class="{ 'sunday': day === 'SUN', 'saturday': day === 'SAT' }">
-                {{ day }}
+              {{ day }}
             </div>
           </div>
           
@@ -202,36 +293,80 @@ const goToCreate = () => {
             <div v-for="n in startDay" :key="'blank-' + n" class="day blank"></div>
 
             <div v-for="day in daysInMonth" :key="day" class="day" :class="{ 'is-today': isToday(day) }">
-                <div class="day-top">
-                    <span class="day-number" :class="{ 'today-badge': isToday(day) }">{{ day }}</span>
-                </div>
+              <div class="day-top">
+                <span class="day-number" :class="{ 'today-badge': isToday(day) }">{{ day }}</span>
+              </div>
 
-                <div class="plan-bars">
+              <div class="plan-bars">
                 <div
-                    v-for="plan in getPlansForDate(day)"
-                    :key="plan.id"
-                    class="plan-bar"
-                    :class="getPlanClass(day, plan)"
-                    :style="getPlanStyle(plan.id)"
-                    @click.stop="goToTrip(plan.id)"
+                  v-for="plan in getPlansForDate(day)"
+                  :key="plan.id"
+                  class="plan-bar"
+                  :class="getPlanClass(day, plan)"
+                  :style="getPlanStyle(plan.id)"
+                  @click.stop="goToTrip(plan.id)"
                 >
-                    <span
+                  <span
                     v-if="getPlanClass(day, plan).includes('is-start')"
                     class="plan-title"
                     :style="{ width: getSegmentWidth(day, plan) }"
-                    >
+                  >
                     {{ plan.title }}
-                    </span>
-                    <span v-else class="plan-title-hidden">&nbsp;</span>
+                  </span>
+                  <span v-else class="plan-title-hidden">&nbsp;</span>
                 </div>
-                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
+      <!-- 하단 섹션 -->
       <div class="bottom-section">
         
+        <!-- 북마크 카드 -->
+        <div class="card bookmark-card glass-card">
+          <div class="card-header">
+            <h3>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="28" 
+                height="28" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="#2F80ED" 
+                stroke-width="2" 
+                stroke-linecap="round" 
+                stroke-linejoin="round"
+                style="vertical-align: sub; margin-right: 8px;"
+              >
+                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+              </svg>
+              저장된 북마크
+            </h3>
+            <span class="subtitle">저장한 장소를 확인하세요</span>
+          </div>
+          
+          <div v-if="isLoadingBookmarks" class="loading-msg">로딩 중...</div>
+          <ul v-else class="bookmark-list">
+            <li 
+              v-for="bookmark in bookmarks" 
+              :key="bookmark.id" 
+              class="bookmark-item"
+              @click="openBookmarkModal(bookmark)"
+            >
+              <div class="bookmark-info">
+                <h4 class="bookmark-title">{{ bookmark.place?.title || '장소명 없음' }}</h4>
+                <p class="bookmark-address">{{ bookmark.place?.address || '주소 없음' }}</p>
+                <span v-if="bookmark.place?.category" class="bookmark-category">{{ bookmark.place.category }}</span>
+              </div>
+              <button @click="removeBookmark(bookmark.id, $event)" class="btn-del" title="북마크 삭제">×</button>
+            </li>
+            <li v-if="bookmarks.length === 0" class="empty-msg">저장된 북마크가 없습니다.</li>
+          </ul>
+        </div>
+
+        <!-- 위시리스트 카드 -->
         <div class="card wishlist-card glass-card">
           <div class="card-header">
             <h3>여행 위시리스트</h3>
@@ -251,7 +386,7 @@ const goToCreate = () => {
           <ul class="wish-list">
             <li v-for="item in wishlist" :key="item.id" class="wish-item">
               <label :class="{ checked: item.checked }">
-                <input type="checkbox" v-model="item.checked" />
+                <input type="checkbox" :checked="item.checked" @change="toggleWish(item)" />
                 <span class="wish-text">{{ item.text }}</span>
               </label>
               <button @click="removeWish(item.id)" class="btn-del">×</button>
@@ -259,33 +394,17 @@ const goToCreate = () => {
             <li v-if="wishlist.length === 0" class="empty-msg">위시리스트가 비어있습니다.</li>
           </ul>
         </div>
-
-        <div class="card recommend-card glass-card">
-          <div class="card-header">
-            <h3>☃️ {{ currentMonth + 1 }}월의 추천 여행지</h3>
-            <span class="subtitle">지금 떠나기 딱 좋은 곳들</span>
-          </div>
-          
-          <div class="recommend-grid">
-            <div 
-              v-for="place in recommendations" 
-              :key="place.id" 
-              class="recommend-item"
-              :style="{ backgroundColor: place.color }"
-            >
-              <div class="place-icon">{{ place.icon }}</div>
-              <div class="place-info">
-                <span class="place-tag">{{ place.tag }}</span>
-                <strong class="place-title">{{ place.title }}</strong>
-              </div>
-            </div>
-          </div>
-          <div class="more-link">
-            <span>더 많은 여행지 찾아보기 &rarr;</span>
-          </div>
-        </div>
-
       </div>
+    </div>
+
+    <!-- 북마크 모달 -->
+    <div 
+      v-if="showBookmarkModal" 
+      class="modal-overlay" 
+      :class="{ 'bookmark-overlay': selectedBookmark }"
+      @click.self="!selectedBookmark && (showBookmarkModal = false)"
+    >
+      <KakaoMapSearch :bookmark="selectedBookmark" @close="showBookmarkModal = false" />
     </div>
   </div>
 </template>
@@ -358,41 +477,41 @@ const goToCreate = () => {
 }
 
 .current-date-display {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    line-height: 1.1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
 }
 
 .year-label {
-    font-size: 1rem;
-    color: #888;
-    font-weight: 500;
+  font-size: 1rem;
+  color: #888;
+  font-weight: 500;
 }
 
 .month-label {
-    font-size: 2.2rem;
-    font-weight: 800;
-    color: #111;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #111;
 }
 
 .nav-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 1px solid #eee;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: #333;
-    transition: all 0.2s;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #eee;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #333;
+  transition: all 0.2s;
 }
 
 .nav-btn:hover {
-    background: #f5f5f5;
-    transform: scale(1.05);
+  background: #f5f5f5;
+  transform: scale(1.05);
 }
 
 .btn-create {
@@ -412,8 +531,8 @@ const goToCreate = () => {
 }
 
 .plus-icon {
-    font-size: 1.2rem;
-    font-weight: 400;
+  font-size: 1.2rem;
+  font-weight: 400;
 }
 
 .btn-create:hover {
@@ -426,9 +545,9 @@ const goToCreate = () => {
 }
 
 .week-header {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 10px;
 }
 
 .weekday {
@@ -441,20 +560,19 @@ const goToCreate = () => {
   letter-spacing: 1px;
 }
 
-.weekday.sunday { color: #ff6b6b; }
-.weekday.saturday { color: #339af0; }
+.weekday.sunday { color: #FF4757; }
+.weekday.saturday { color: #2F80ED; }
 
 .days-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    border-top: 1px solid #eee; 
-    border-left: 1px solid #eee; 
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top: 1px solid #eee; 
+  border-left: 1px solid #eee; 
 }
 
-/* [수정됨] 패딩을 없애서 내용물이 꽉 차게 만듦 */
 .day {
   min-height: 160px;
-  padding: 0; /* 패딩 제거 */
+  padding: 0;
   border-right: 1px solid #eee; 
   border-bottom: 1px solid #eee;
   position: relative;
@@ -463,14 +581,13 @@ const goToCreate = () => {
 }
 
 .day:hover {
-    background-color: #fafafa;
+  background-color: #fafafa;
 }
 
-/* 날짜 숫자에만 패딩 적용 */
 .day-top {
-    padding: 12px 12px 6px 12px;
-    display: flex;
-    justify-content: flex-start;
+  padding: 12px 12px 6px 12px;
+  display: flex;
+  justify-content: flex-start;
 }
 
 .day-number {
@@ -486,9 +603,9 @@ const goToCreate = () => {
 }
 
 .today-badge {
-    background-color: #2563eb;
-    color: white;
-    font-weight: 700;
+  background-color: #2F80ED;
+  color: white;
+  font-weight: 700;
 }
 
 .blank {
@@ -498,12 +615,11 @@ const goToCreate = () => {
 .plan-bars {
   display: flex;
   flex-direction: column;
-  gap: 2px; /* 상하 간격 */
+  gap: 2px;
   width: 100%;
   padding-bottom: 6px;
 }
 
-/* [수정됨] 연결된 느낌을 위한 바 스타일 */
 .plan-bar {
   background-color: var(--plan-bg);
   color: var(--plan-text);
@@ -514,8 +630,8 @@ const goToCreate = () => {
   white-space: nowrap;
   position: relative;
   opacity: 1;
-  border-radius: 0; /* 기본 둥근 모서리 제거 */
-  margin: 1px 0; /* 좌우 여백 제거 */
+  border-radius: 0;
+  margin: 1px 0;
 }
 
 .plan-bar:hover {
@@ -523,23 +639,16 @@ const goToCreate = () => {
   z-index: 5;
 }
 
-/* 시작 부분 스타일 */
 .plan-bar.is-start {
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
-  margin-left: 6px; /* 시작 부분은 띄움 */
+  margin-left: 6px;
 }
 
-/* 끝 부분 스타일 */
 .plan-bar.is-end {
   border-top-right-radius: 6px;
   border-bottom-right-radius: 6px;
-  margin-right: 6px; /* 끝 부분은 띄움 */
-}
-
-/* 중간 부분은 여백 없이 꽉 채움 (자동으로 직각 처리됨) */
-.plan-bar.is-middle {
-    /* 별도 스타일 없음, margin: 0에 의해 꽉 참 */
+  margin-right: 6px;
 }
 
 .plan-title {
@@ -592,6 +701,75 @@ const goToCreate = () => {
   color: #666;
 }
 
+/* --- 북마크 스타일 --- */
+.bookmark-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.bookmark-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.bookmark-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(66, 133, 244, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.bookmark-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bookmark-title {
+  margin: 0 0 5px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookmark-address {
+  margin: 0 0 5px 0;
+  font-size: 0.85rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookmark-category {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  color: #2F80ED;
+  background: rgba(66, 133, 244, 0.1);
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.loading-msg {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
 /* --- 위시리스트 스타일 --- */
 .wish-input-area {
   display: flex;
@@ -611,13 +789,13 @@ const goToCreate = () => {
 }
 
 .wish-input-area input:focus {
-  border-color: #2563eb;
+  border-color: #2F80ED;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .btn-add {
-  background: #2563eb;
+  background: #2F80ED;
   color: white;
   border: none;
   width: 48px;
@@ -631,7 +809,7 @@ const goToCreate = () => {
 }
 
 .btn-add:hover {
-    background: #1d4ed8;
+  background: #1d4ed8;
 }
 
 .wish-list {
@@ -663,7 +841,7 @@ const goToCreate = () => {
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #2563eb;
+  accent-color: #2F80ED;
 }
 
 .wish-text {
@@ -680,7 +858,7 @@ const goToCreate = () => {
 .btn-del {
   border: none;
   background: none;
-  color: #ff6b6b;
+  color:#FF4757;
   cursor: pointer;
   font-size: 1.4rem;
   padding: 0 8px;
@@ -689,7 +867,7 @@ const goToCreate = () => {
 }
 
 .btn-del:hover {
-    opacity: 1;
+  opacity: 1;
 }
 
 .empty-msg {
@@ -697,72 +875,6 @@ const goToCreate = () => {
   color: #888;
   padding: 30px;
   font-size: 0.95rem;
-}
-
-/* --- 추천 여행지 스타일 --- */
-.recommend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.recommend-item {
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  height: 120px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-}
-
-.recommend-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-}
-
-.place-icon {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-}
-
-.place-info {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.place-tag {
-  font-size: 0.75rem;
-  color: #555;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 500;
-}
-
-.place-title {
-  font-size: 1rem;
-  color: #111;
-  font-weight: 700;
-}
-
-.more-link {
-  text-align: right;
-  font-size: 0.9rem;
-  color: #2563eb;
-  cursor: pointer;
-  margin-top: auto;
-  font-weight: 600;
-}
-
-.more-link span:hover {
-  text-decoration: underline;
 }
 
 /* --- 반응형 --- */
@@ -776,7 +888,37 @@ const goToCreate = () => {
   }
   
   .content-wrapper {
-      padding: 1.5rem;
+    padding: 1.5rem;
   }
+}
+
+/* 모달 오버레이 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  transition: opacity 0.3s ease;
+}
+
+/* 북마크 모드일 때 오버레이 스타일 조정 */
+.modal-overlay.bookmark-overlay {
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* 북마크 모드일 때 사이드패널만 클릭 가능 */
+.modal-overlay.bookmark-overlay > * {
+  pointer-events: auto;
 }
 </style>
