@@ -30,21 +30,8 @@ class ItinerarySerializer(serializers.ModelSerializer):
 class TravelPlanSerializer(serializers.ModelSerializer):
     """여행 계획 Serializer"""
     itineraries = ItinerarySerializer(many=True, read_only=True)
-    user = serializers.StringRelatedField(read_only=True)
-
-    class Meta:
-        model = TravelPlan
-        fields = ['id', 'user', 'title', 'budget', 'people_count', 'start_date', 'end_date',
-                  'departure_location', 'region', 'travel_style', 'accommodation_type', 'is_generated',
-                  'is_recommended', 'review', 'rating', 'recommended_at',
-                  'itineraries', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at', 'is_generated', 'recommended_at']
-
-
-class TravelPlanSerializer(serializers.ModelSerializer):
-    """여행 계획 Serializer"""
-    itineraries = ItinerarySerializer(many=True, read_only=True)
     user = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
 
     def get_user(self, obj):
         """사용자 닉네임 반환 (닉네임이 없으면 username)"""
@@ -54,11 +41,22 @@ class TravelPlanSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TravelPlan
-        fields = ['id', 'user', 'title', 'budget', 'people_count', 'start_date', 'end_date',
+        fields = ['id', 'user', 'user_id', 'title', 'budget', 'people_count', 'start_date', 'end_date',
                   'departure_location', 'region', 'travel_style', 'accommodation_type', 'is_generated',
                   'is_recommended', 'review', 'rating', 'recommended_at',
                   'itineraries', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at', 'is_generated', 'recommended_at']
+
+
+class TravelPlanRecommendSerializer(serializers.Serializer):
+    """여행 계획 추천 Serializer"""
+    review = serializers.CharField(required=True, max_length=2000, help_text="후기")
+    rating = serializers.IntegerField(required=True, min_value=1, max_value=5, help_text="평점 (1-5)")
+
+
+class TravelPlanModifySerializer(serializers.Serializer):
+    """여행 계획 수정 요청 Serializer"""
+    requirements = serializers.CharField(required=True, max_length=2000, help_text="수정 요구사항")
 
 
 class TravelPlanCreateSerializer(serializers.Serializer):
@@ -79,8 +77,3 @@ class TravelPlanCreateSerializer(serializers.Serializer):
         if attrs['start_date'] >= attrs['end_date']:
             raise serializers.ValidationError("종료일은 시작일보다 이후여야 합니다.")
         return attrs
-
-class TravelPlanRecommendSerializer(serializers.Serializer):
-    """여행 계획 추천 Serializer"""
-    review = serializers.CharField(required=True, max_length=2000, help_text="후기")
-    rating = serializers.IntegerField(required=True, min_value=1, max_value=5, help_text="평점 (1-5)")

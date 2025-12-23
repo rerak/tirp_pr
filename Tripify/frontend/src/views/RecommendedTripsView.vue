@@ -163,10 +163,9 @@ onMounted(() => {
 .plans-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* 카드 간 간격 */
+  gap: 1.5rem;
 }
 
-/* 카드 스타일: 실용적이고 정보 중심적 */
 .plan-card {
   background: white;
   border: 1px solid #e1e4e8;
@@ -184,7 +183,6 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
-/* 헤더 영역 */
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -226,10 +224,9 @@ onMounted(() => {
   gap: 4px;
 }
 
-/* 정보 그리드 영역: 핵심 */
 .info-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr; /* 기간을 좀 더 넓게 */
+  grid-template-columns: 2fr 1fr 1fr;
   gap: 1.5rem;
   margin-bottom: 1.5rem;
 }
@@ -253,7 +250,7 @@ onMounted(() => {
 }
 
 .date-value {
-  font-family: 'Roboto', sans-serif; /* 숫자가 깔끔해 보이게 */
+  font-family: 'Roboto', sans-serif;
 }
 
 .duration {
@@ -269,7 +266,6 @@ onMounted(() => {
   color: #111;
 }
 
-/* 후기 및 하단 영역 */
 .card-footer-content {
   background-color: #f8f9fa;
   padding: 1rem;
@@ -293,7 +289,6 @@ onMounted(() => {
   color: #495057;
   line-height: 1.5;
   margin: 0;
-  /* 긴 텍스트 처리 */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -306,7 +301,7 @@ onMounted(() => {
   gap: 0.5rem;
   font-size: 0.8rem;
   color: #868e96;
-  justify-content: flex-end; /* 오른쪽 정렬 */
+  justify-content: flex-end;
   margin-top: 0.5rem;
 }
 
@@ -315,10 +310,9 @@ onMounted(() => {
   font-size: 0.7rem;
 }
 
-/* 모바일 대응 */
 @media (max-width: 600px) {
   .info-grid {
-    grid-template-columns: 1fr; /* 모바일에서는 한 줄씩 */
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
   

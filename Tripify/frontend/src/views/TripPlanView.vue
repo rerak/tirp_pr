@@ -17,6 +17,7 @@ const formData = ref({
   accommodation_type: 'hotel',
 })
 
+// 지역 옵션
 const regions = [
   '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시',
   '대전광역시', '울산광역시', '세종특별자치시',
@@ -24,20 +25,22 @@ const regions = [
   '전북특별자치도', '전라남도', '경상북도', '경상남도', '제주특별자치도'
 ]
 
+// 여행 스타일 옵션
 const travelStyles = [
-  { value: '관광', label: '관광' },
-  { value: '힐링', label: '힐링' },
-  { value: '맛집투어', label: '맛집' },
-  { value: '문화체험', label: '문화' },
-  { value: '자연탐방', label: '자연' },
-  { value: '쇼핑', label: '쇼핑' },
+  { value: '관광', label: '관광', desc: '명소 탐방' },
+  { value: '힐링', label: '힐링', desc: '휴식과 재충전' },
+  { value: '맛집투어', label: '맛집투어', desc: '음식 탐방' },
+  { value: '문화체험', label: '문화체험', desc: '박물관, 공연' },
+  { value: '자연탐방', label: '자연탐방', desc: '산, 바다, 계곡' },
+  { value: '쇼핑', label: '쇼핑', desc: '쇼핑 중심' },
 ]
 
+// 숙박 타입 옵션
 const accommodationTypes = [
-  { value: 'hotel', label: '호텔' },
-  { value: 'motel', label: '모텔' },
-  { value: 'pension', label: '펜션' },
-  { value: 'guesthouse', label: '게스트하우스' },
+  { value: 'hotel', label: '호텔', desc: '고급 호텔' },
+  { value: 'motel', label: '모텔', desc: '편안한 숙박' },
+  { value: 'pension', label: '펜션', desc: '자연 속 휴식' },
+  { value: 'guesthouse', label: '게스트하우스', desc: '저렴한 숙박' },
 ]
 
 const loading = ref(false)
@@ -59,9 +62,7 @@ const handleSubmit = async () => {
 
 <template>
   <div class="layout-container">
-    <div class="static-bg-wrapper"></div>
-
-    <div class="content-wrapper glass-card">
+    <div class="content-wrapper form-card">
       
       <header class="header">
         <h1 class="title">New Trip</h1>
@@ -72,56 +73,62 @@ const handleSubmit = async () => {
 
       <form @submit.prevent="handleSubmit" class="form-grid">
         
-        <div class="form-group">
-          <label class="label">Schedule</label>
-          <div class="row">
-            <div class="input-wrap">
-              <span class="sub-label">시작일</span>
-              <input v-model="formData.start_date" type="date" required />
+        <div class="grid-row-2">
+            <div class="form-group">
+              <label class="label">Schedule</label>
+              <div class="input-row">
+                  <div class="input-wrap">
+                  <span class="sub-label">시작일</span>
+                  <input v-model="formData.start_date" type="date" required />
+                  </div>
+                  <div class="input-wrap">
+                  <span class="sub-label">종료일</span>
+                  <input v-model="formData.end_date" type="date" required />
+                  </div>
+              </div>
             </div>
-            <div class="input-wrap">
-              <span class="sub-label">종료일</span>
-              <input v-model="formData.end_date" type="date" required />
-            </div>
-          </div>
-        </div>
 
-        <div class="form-group">
-          <label class="label">Conditions</label>
-          <div class="row">
-            <div class="input-wrap">
-              <span class="sub-label">인원</span>
-              <input 
-                v-model.number="formData.people_count" 
-                type="number" 
-                min="1" 
-                placeholder="2"
-              />
+            <div class="form-group">
+              <label class="label">Conditions</label>
+              <div class="input-row">
+                  <div class="input-wrap">
+                  <span class="sub-label">인원</span>
+                  <input 
+                      v-model.number="formData.people_count" 
+                      type="number" 
+                      min="1" 
+                      max="20"
+                      required
+                      placeholder="2"
+                  />
+                  </div>
+                  <div class="input-wrap">
+                  <span class="sub-label">예산(KRW)</span>
+                  <input 
+                      v-model.number="formData.budget" 
+                      type="number"
+                      min="0"
+                      step="10000" 
+                      required
+                      placeholder="500000"
+                  />
+                  </div>
+              </div>
             </div>
-            <div class="input-wrap">
-              <span class="sub-label">예산(KRW)</span>
-              <input 
-                v-model.number="formData.budget" 
-                type="number" 
-                step="10000" 
-                placeholder="500000"
-              />
-            </div>
-          </div>
         </div>
 
         <div class="form-group">
           <label class="label">Location</label>
-          <div class="row">
+          <div class="input-row">
             <div class="input-wrap">
               <span class="sub-label">출발</span>
-              <select v-model="formData.departure_location">
+              <select v-model="formData.departure_location" required>
                 <option v-for="region in regions" :key="region" :value="region">{{ region }}</option>
               </select>
             </div>
             <div class="input-wrap">
               <span class="sub-label">도착</span>
-              <select v-model="formData.region">
+              <select v-model="formData.region" required>
                 <option v-for="region in regions" :key="region" :value="region">{{ region }}</option>
               </select>
             </div>
@@ -131,42 +138,46 @@ const handleSubmit = async () => {
         <div class="form-group">
           <label class="label">Preferences</label>
           
-          <div class="select-group">
-            <span class="group-name">여행 스타일</span>
-            <div class="button-grid">
-              <button
-                v-for="style in travelStyles"
-                :key="style.value"
-                type="button"
-                class="select-btn"
-                :class="{ active: formData.travel_style === style.value }"
-                @click="formData.travel_style = style.value"
-              >
-                {{ style.label }}
-              </button>
+          <div class="prefs-container">
+            <div class="select-group">
+                <span class="group-name">여행 스타일</span>
+                <div class="button-grid">
+                <button
+                    v-for="style in travelStyles"
+                    :key="style.value"
+                    type="button"
+                    class="select-btn"
+                    :class="{ active: formData.travel_style === style.value }"
+                    @click="formData.travel_style = style.value"
+                >
+                    <span class="btn-emoji">{{ style.label.split(' ')[0] }}</span>
+                    <span class="btn-text">{{ style.label.split(' ')[1] }}</span>
+                </button>
+                </div>
             </div>
-          </div>
 
-          <div class="select-group mt-4">
-            <span class="group-name">숙소 유형</span>
-            <div class="button-grid">
-              <button
-                v-for="type in accommodationTypes"
-                :key="type.value"
-                type="button"
-                class="select-btn"
-                :class="{ active: formData.accommodation_type === type.value }"
-                @click="formData.accommodation_type = type.value"
-              >
-                {{ type.label }}
-              </button>
+            <div class="select-group">
+                <span class="group-name">숙소 유형</span>
+                <div class="button-grid">
+                <button
+                    v-for="type in accommodationTypes"
+                    :key="type.value"
+                    type="button"
+                    class="select-btn"
+                    :class="{ active: formData.accommodation_type === type.value }"
+                    @click="formData.accommodation_type = type.value"
+                >
+                    <span class="btn-emoji">{{ type.label.split(' ')[0] }}</span>
+                    <span class="btn-text">{{ type.label.split(' ')[1] }}</span>
+                </button>
+                </div>
             </div>
           </div>
         </div>
 
         <div class="action-area">
           <button type="submit" class="submit-btn" :disabled="loading">
-            {{ loading ? 'Generating...' : '여행 계획 생성하기' }}
+            {{ loading ? '여행 계획 생성 중...' : '여행 계획 생성하기' }}
           </button>
         </div>
 
@@ -176,88 +187,77 @@ const handleSubmit = async () => {
 </template>
 
 <style scoped>
-/* [폰트 적용] Pretendard CDN Import */
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
 .layout-container {
   display: flex;
   justify-content: center;
-  padding: 60px 20px;
+  align-items: flex-start; /* 상단 정렬 */
+  padding: 100px 40px; /* 상단 여백 확보 */
   min-height: 100vh;
-  color: #111; /* 색상 더욱 진하게 */
-  position: relative;
-  
-  /* [폰트 적용] Pretendard를 최우선으로 적용 */
-  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
-  letter-spacing: -0.02em; /* 자간을 살짝 좁혀서 단단한 느낌 */
-}
-
-.static-bg-wrapper {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -2;
-  background-color: #f5f7fa;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(161, 196, 253, 0.5) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(255, 182, 193, 0.3) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(132, 250, 176, 0.4) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(194, 233, 251, 0.5) 0px, transparent 50%);
-  background-attachment: fixed;
-  background-size: cover;
-  pointer-events: none;
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(24px) saturate(180%); /* 블러와 채도 증가로 유리 질감 강화 */
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.04), 
-    0 1px 2px rgba(0, 0, 0, 0.02); /* 그림자 부드럽게 */
-  border-radius: 28px;
-  padding: 48px;
+  color: #111;
+  background-color: #ffffff;
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 .content-wrapper {
   width: 100%;
-  max-width: 560px; /* 폭을 살짝 좁혀 집중도 향상 */
+  max-width: 1300px; 
   position: relative;
   z-index: 1;
+}
+
+.form-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb; 
+  /* [수정됨] 그림자 강화: 더 넓고 진하게 */
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.15);
+  border-radius: 24px;
+  padding: 56px;
 }
 
 /* Header */
 .header {
   margin-bottom: 40px;
-  border-bottom: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 2px solid #f3f4f6;
   padding-bottom: 24px;
 }
 
 .title {
-  font-size: 36px;
-  font-weight: 800; /* Extra Bold */
-  letter-spacing: -0.04em; /* 제목은 자간을 더 좁게 */
-  margin: 0 0 6px 0;
-  color: #1a1a1a;
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin: 0 0 8px 0;
+  color: #111;
   line-height: 1.1;
 }
 
 .desc {
-  font-size: 16px;
+  font-size: 17px;
   color: #6b7280;
   margin: 0;
   font-weight: 400;
-  line-height: 1.5;
 }
 
 /* Form Layout */
 .form-grid {
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 40px;
+}
+
+/* 상단 2열 그리드 */
+.grid-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
 .form-group {
@@ -266,188 +266,172 @@ const handleSubmit = async () => {
   gap: 12px;
 }
 
-/* Section Label */
 .label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  color: #888;
+  color: #2563eb; 
   text-transform: uppercase;
-  letter-spacing: 0.08em; /* 소제목은 자간을 넓게 */
+  letter-spacing: 0.05em;
   margin-bottom: 4px;
-}
-
-/* Inputs Row */
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
 }
 
 .input-wrap {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .sub-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #4b5563;
-  margin-left: 2px;
-}
-
-/* Input Styles */
-input, select {
-  width: 100%;
-  height: 52px; /* 높이 약간 증가 */
-  padding: 0 16px;
-  border: 1px solid transparent;
-  border-radius: 12px; 
-  font-size: 15px;
-  font-weight: 500;
-  font-family: inherit; /* 부모 폰트 상속 */
-  color: #1f2937;
-  background-color: rgba(255,255,255,0.6);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  appearance: none;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* 미세한 입체감 */
-}
-
-input:hover, select:hover {
-  background-color: rgba(255,255,255,0.9);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-input:focus, select:focus {
-  outline: none;
-  background-color: #fff;
-  border-color: #2563eb; /* 포커스 시 파란색 테두리 */
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); /* 부드러운 글로우 효과 */
-}
-
-input::placeholder {
-  color: #9ca3af;
-  font-weight: 400;
-}
-
-/* Select preferences */
-.select-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.mt-4 { margin-top: 12px; }
-
-.group-name {
   font-size: 14px;
   font-weight: 600;
   color: #374151;
   margin-left: 2px;
 }
 
-.button-grid {
+/* Inputs */
+input, select {
+  width: 100%;
+  height: 56px; 
+  padding: 0 18px;
+  border: 1px solid #e5e7eb; 
+  border-radius: 12px; 
+  font-size: 16px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #111;
+  background-color: #f9fafb; 
+  transition: all 0.2s ease;
+  appearance: none;
+}
+
+input:hover, select:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+input:focus, select:focus {
+  outline: none;
+  background-color: #fff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Preferences Layout */
+.prefs-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+}
+
+.select-group {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+  gap: 10px;
+}
+
+/* Select Buttons */
+.select-btn {
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #4b5563;
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
-/* Button Styles */
-.select-btn {
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: inherit;
-  color: #6b7280;
-  background-color: rgba(255,255,255,0.5);
-  border: 1px solid transparent;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
 .select-btn:hover {
-  background-color: #fff;
-  color: #111;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border-color: #2563eb;
+  color: #2563eb;
+  background-color: #eff6ff;
 }
 
 .select-btn.active {
-  background-color: #111; /* 완전 검정으로 시크하게 */
+  background-color: #111;
   color: #fff;
-  font-weight: 600;
+  border-color: #111;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 /* Submit Button */
 .action-area {
-  margin-top: 12px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(0,0,0,0.06);
+  margin-top: 20px;
+  padding-top: 32px;
+  border-top: 1px solid #f3f4f6;
 }
 
 .submit-btn {
   width: 100%;
-  height: 60px; /* 높이 증가 */
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); /* 그라데이션 적용 */
+  height: 64px;
+  background: #111; 
   color: #fff;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
-  font-family: inherit;
-  letter-spacing: -0.01em;
   border: none;
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
-}
-
-.submit-btn:active:not(:disabled) {
-  transform: translateY(0);
+  background: #333;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .submit-btn:disabled {
-  background: #cbd5e1;
+  background: #e5e7eb;
+  color: #9ca3af;
   cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
 }
 
 .error-message {
-  color: #ef4444;
+  color: #dc2626;
   font-size: 14px;
   margin-bottom: 24px;
   font-weight: 600;
   text-align: center;
-  background-color: rgba(239, 68, 68, 0.1);
-  padding: 12px;
-  border-radius: 8px;
+  background-color: #fef2f2;
+  padding: 16px;
+  border-radius: 12px;
 }
 
-/* Mobile Responsive */
-@media (max-width: 600px) {
+/* Responsive */
+@media (max-width: 900px) {
   .layout-container {
-    padding: 20px 16px;
+    padding: 20px;
   }
   
-  .glass-card {
+  .form-card {
     padding: 32px 24px;
-    border-radius: 24px;
   }
 
-  .row {
+  .grid-row-2, .prefs-container, .input-row {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 24px;
   }
-
+  
   .title {
-    font-size: 28px;
+    font-size: 32px;
   }
 }
 </style>

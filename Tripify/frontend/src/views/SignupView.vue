@@ -180,13 +180,13 @@ const handleSignup = async () => {
   position: relative;
   overflow: hidden;
   
-  /* 로그인 페이지와 동일한 그라데이션 */
+  /* 그라데이션 배경 */
   background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
   color: #333;
 }
 
-/* 3. 구름 애니메이션 구현 (로그인과 동일) */
+/* 3. 구름 애니메이션 구현 */
 .sky-background {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
@@ -308,11 +308,11 @@ const handleSignup = async () => {
 .link-bold { color: #0ea5e9; font-weight: 700; text-decoration: none; margin-left: 0.5rem; position: relative; }
 .link-bold:hover { color: #3b82f6; }
 
-/* 6. 성공 화면 스타일 (테마 통합) */
+/* 6. 성공 화면 스타일 */
 .success-view { text-align: center; padding: 1rem 0; }
 .icon-success {
   width: 70px; height: 70px; border-radius: 50%;
-  background-color: #dcfce7; color: #16a34a; /* 초록색 포인트 유지 */
+  background-color: #dcfce7; color: #16a34a;
   display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;
   box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
@@ -321,7 +321,7 @@ const handleSignup = async () => {
 .success-msg { color: #16a34a; font-weight: 600; margin-bottom: 2rem; }
 
 .notice-box {
-  background-color: rgba(255, 255, 255, 0.6); /* 유리 효과 위에서 어색하지 않게 투명도 조절 */
+  background-color: rgba(255, 255, 255, 0.6);
   padding: 1.5rem; border-radius: 12px;
   border: 1px solid #e2e8f0; margin-bottom: 2rem; text-align: left;
 }
@@ -354,8 +354,11 @@ const handleSignup = async () => {
 
 /* 모바일 대응 */
 @media (max-width: 640px) {
-  .signup-card { padding: 2.5rem 1.5rem; box-shadow: none; border: none; background: transparent; backdrop-filter: none; animation: none; }
-  .page-container { background: #fff; }
-  .sky-background { display: none; }
+  .signup-card { 
+    padding: 2.5rem 1.5rem; 
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    animation: none;
+  }
 }
 </style>

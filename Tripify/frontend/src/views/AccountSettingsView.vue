@@ -1,5 +1,6 @@
 <template>
   <div class="mypage-wrapper">
+    <!-- 비밀번호 확인 모달 (일반 로그인 사용자만) -->
     <transition name="modal-fade">
       <div v-if="showPasswordVerification" class="modal-backdrop">
         <div class="modal-card verification-modal">
@@ -50,9 +51,11 @@
       </div>
     </transition>
 
+    <!-- 마이페이지 컨텐츠 -->
     <div v-if="isVerified" class="content-container">
       <div class="dashboard-grid">
         
+        <!-- 프로필 사이드바 -->
         <aside class="profile-sidebar">
           <div class="card profile-card">
             <div class="profile-avatar">
@@ -92,6 +95,7 @@
                   <button @click="cancelEditNickname" class="btn btn-ghost btn-sm">취소</button>
                 </div>
                 <p v-if="nicknameError" class="error-text sm">{{ nicknameError }}</p>
+                <p v-if="nicknameSuccess" class="success-text sm">{{ nicknameSuccess }}</p>
               </div>
             </transition>
             
@@ -104,8 +108,10 @@
           </div>
         </aside>
 
+        <!-- 설정 메인 -->
         <main class="settings-main">
           
+          <!-- 회원 정보 섹션 -->
           <section class="card settings-card">
             <div class="card-header">
               <h3 class="card-title">내 정보</h3>
@@ -129,6 +135,7 @@
             </div>
           </section>
 
+          <!-- 비밀번호 변경 섹션 -->
           <section class="card settings-card">
             <div class="card-header">
               <h3 class="card-title">보안 설정</h3>
@@ -191,6 +198,7 @@
             </div>
           </section>
 
+          <!-- 회원탈퇴 섹션 -->
           <section class="card settings-card danger-zone">
             <div class="card-header">
               <h3 class="card-title">계정 관리</h3>
@@ -215,6 +223,7 @@
       </div>
     </div>
 
+    <!-- 회원탈퇴 확인 모달 -->
     <transition name="modal-fade">
       <div v-if="showDeleteConfirmation" class="modal-backdrop" @click.self="closeDeleteModal">
         <div class="modal-card delete-modal">
@@ -273,19 +282,20 @@ import { authAPI } from '@/api/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// State
 const user = ref(null)
 const showDeleteConfirmation = ref(false)
 const deletePassword = ref('')
 const isDeleting = ref(false)
 const deleteError = ref('')
 
+// 비밀번호 확인 관련
 const showPasswordVerification = ref(false)
 const verifyPassword = ref('')
 const isVerifying = ref(false)
 const verifyError = ref('')
 const isVerified = ref(false)
 
+// 비밀번호 변경 관련
 const passwordForm = ref({
   currentPassword: '',
   newPassword: '',
@@ -295,6 +305,7 @@ const isChangingPassword = ref(false)
 const passwordError = ref('')
 const passwordSuccess = ref('')
 
+// 닉네임 수정 관련
 const isEditingNickname = ref(false)
 const editingNickname = ref('')
 const isSavingNickname = ref(false)
@@ -302,11 +313,12 @@ const nicknameError = ref('')
 const nicknameSuccess = ref('')
 const nicknameInputRef = ref(null)
 
-// Computed
+// 일반 로그인 사용자인지 확인
 const isNormalLogin = computed(() => {
   return user.value && (!user.value.login_type || user.value.login_type === 'normal')
 })
 
+// 비밀번호 폼 유효성 검사
 const isPasswordFormValid = computed(() => {
   return (
     passwordForm.value.currentPassword &&
@@ -315,13 +327,15 @@ const isPasswordFormValid = computed(() => {
   )
 })
 
-// Lifecycle
 onMounted(async () => {
   try {
     user.value = await authStore.getProfile()
+
+    // 일반 로그인 사용자는 비밀번호 확인 필요
     if (isNormalLogin.value) {
       showPasswordVerification.value = true
     } else {
+      // 소셜 로그인 사용자는 바로 접근
       isVerified.value = true
     }
   } catch (error) {
@@ -330,7 +344,6 @@ onMounted(async () => {
   }
 })
 
-// Methods
 const startEditNickname = () => {
   editingNickname.value = user.value?.nickname || ''
   isEditingNickname.value = true
@@ -352,6 +365,7 @@ const cancelEditNickname = () => {
 
 const saveNickname = async () => {
   if (isSavingNickname.value) return
+  
   nicknameError.value = ''
   nicknameSuccess.value = ''
   
@@ -371,10 +385,12 @@ const saveNickname = async () => {
     user.value = updatedUser
     nicknameSuccess.value = '닉네임이 변경되었습니다.'
     isEditingNickname.value = false
+    
     setTimeout(() => {
       nicknameSuccess.value = ''
     }, 3000)
   } catch (error) {
+    console.error('닉네임 변경 실패:', error)
     if (error.response?.data?.nickname) {
       nicknameError.value = error.response.data.nickname[0]
     } else {
@@ -387,13 +403,18 @@ const saveNickname = async () => {
 
 const handlePasswordVerification = async () => {
   if (isVerifying.value || !verifyPassword.value) return
+
   try {
     isVerifying.value = true
     verifyError.value = ''
+
     await authAPI.verifyPassword(verifyPassword.value)
+
+    // 비밀번호 확인 성공
     showPasswordVerification.value = false
     isVerified.value = true
   } catch (error) {
+    console.error('비밀번호 확인 실패:', error)
     if (error.response?.data?.password) {
       verifyError.value = error.response.data.password[0]
     } else {
@@ -438,35 +459,51 @@ const formatDate = (dateString) => {
 
 const handlePasswordChange = async () => {
   if (isChangingPassword.value) return
+
   passwordError.value = ''
   passwordSuccess.value = ''
+
+  // 클라이언트 측 유효성 검사
   if (passwordForm.value.newPassword !== passwordForm.value.newPasswordConfirm) {
     passwordError.value = '새 비밀번호가 일치하지 않습니다.'
     return
   }
+
   if (passwordForm.value.newPassword.length < 8) {
     passwordError.value = '새 비밀번호는 최소 8자 이상이어야 합니다.'
     return
   }
+
   try {
     isChangingPassword.value = true
+
     await authStore.changePassword(
       passwordForm.value.currentPassword,
       passwordForm.value.newPassword,
       passwordForm.value.newPasswordConfirm
     )
+
     passwordSuccess.value = '비밀번호가 성공적으로 변경되었습니다.'
+
+    // 폼 초기화
     passwordForm.value = {
       currentPassword: '',
       newPassword: '',
       newPasswordConfirm: '',
     }
+
+    // 3초 후 성공 메시지 제거
     setTimeout(() => {
       passwordSuccess.value = ''
     }, 3000)
   } catch (error) {
+    console.error('비밀번호 변경 실패:', error)
     if (error.response?.data?.error) {
       passwordError.value = error.response.data.error
+    } else if (error.response?.data?.current_password) {
+      passwordError.value = error.response.data.current_password[0]
+    } else if (error.response?.data?.new_password) {
+      passwordError.value = error.response.data.new_password[0]
     } else {
       passwordError.value = '비밀번호 변경 중 오류가 발생했습니다.'
     }
@@ -485,18 +522,24 @@ const closeDeleteModal = () => {
 
 const handleDeleteAccount = async () => {
   if (isDeleting.value) return
+
+  // 일반 로그인 사용자는 비밀번호 확인 필수
   if (isNormalLogin.value && !deletePassword.value) {
     deleteError.value = '비밀번호를 입력해주세요.'
     return
   }
+
   try {
     isDeleting.value = true
     deleteError.value = ''
+
     const passwordToSend = isNormalLogin.value ? deletePassword.value : null
     await authStore.deleteAccount(passwordToSend)
+
     alert('회원탈퇴가 완료되었습니다.')
     router.push('/')
   } catch (error) {
+    console.error('회원탈퇴 실패:', error)
     if (error.response?.data?.error) {
       deleteError.value = error.response.data.error
     } else {
@@ -516,7 +559,7 @@ const handleDeleteAccount = async () => {
 
 .mypage-wrapper {
   min-height: 100vh;
-  background-color: #f5f7fa; /* 아주 옅은 회색 배경 */
+  background-color: #f5f7fa;
   padding: 3rem 1rem;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
   color: #333;
@@ -579,7 +622,7 @@ const handleDeleteAccount = async () => {
 .profile-avatar {
   width: 100px;
   height: 100px;
-  background-color: #e0e4ff; /* 연한 보라색 배경 */
+  background-color: #e0e4ff;
   color: #5a67d8;
   border-radius: 50%;
   display: flex;
@@ -913,5 +956,7 @@ const handleDeleteAccount = async () => {
 }
 .edit-actions { display: flex; gap: 0.5rem; justify-content: center; }
 .error-text { color: #e53e3e; font-size: 0.85rem; margin-top: 0.5rem; text-align: center; }
+.error-text.sm { font-size: 0.8rem; }
 .success-text { color: #38a169; font-size: 0.85rem; margin-top: 0.5rem; text-align: center; }
+.success-text.sm { font-size: 0.8rem; }
 </style>
